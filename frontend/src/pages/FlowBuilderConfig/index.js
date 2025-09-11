@@ -27,6 +27,7 @@ import imgNode from "./nodes/imgNode";
 import randomizerNode from "./nodes/randomizerNode";
 import videoNode from "./nodes/videoNode";
 import questionNode from "./nodes/questionNode";
+import flowConnectionNode from "./nodes/flowConnectionNode";
 import RemoveEdge from "./nodes/removeEdge";
 import singleBlockNode from "./nodes/singleBlockNode";
 import ticketNode from "./nodes/ticketNode";
@@ -76,6 +77,7 @@ import FlowBuilderSingleBlockModal from "../../components/FlowBuilderSingleBlock
 import FlowBuilderTypebotModal from "../../components/FlowBuilderAddTypebotModal";
 import FlowBuilderOpenAIModal from "../../components/FlowBuilderAddOpenAIModal";
 import FlowBuilderAddQuestionModal from "../../components/FlowBuilderAddQuestionModal";
+import FlowBuilderAddFlowConnectionModal from "../../components/FlowBuilderAddFlowConnectionModal";
 
 import {
   AccessTime,
@@ -133,6 +135,7 @@ const nodeTypes = {
   typebot: typebotNode,
   openai: openaiNode,
   question: questionNode,
+  flowConnection: flowConnectionNode,
 };
 
 const edgeTypes = {
@@ -175,6 +178,7 @@ const FlowBuilderConfig = () => {
   const [modalAddTypebot, setModalAddTypebot] = useState(null);
   const [modalAddOpenAI, setModalAddOpenAI] = useState(null);
   const [modalAddQuestion, setModalAddQuestion] = useState(null);
+  const [modalAddFlowConnection, setModalAddFlowConnection] = useState(null);
 
   const connectionLineStyle = { stroke: "#2b2b2b", strokeWidth: "6px" };
 
@@ -376,6 +380,20 @@ const FlowBuilderConfig = () => {
         ];
       });
     }
+
+    if (type === "flowConnection") {
+      return setNodes((old) => {
+        return [
+          ...old,
+          {
+            id: geraStringAleatoria(30),
+            position: { x: posX, y: posY },
+            data: { ...data },
+            type: "flowConnection",
+          },
+        ];
+      });
+    }
   };
 
   const textAdd = (data) => {
@@ -428,6 +446,10 @@ const FlowBuilderConfig = () => {
 
   const questionAdd = (data) => {
     addNode("question", data);
+  };
+
+  const flowConnectionAdd = (data) => {
+    addNode("flowConnection", data);
   };
 
   const loadMore = () => {
@@ -499,6 +521,9 @@ const FlowBuilderConfig = () => {
     if (node.type === "question") {
       setModalAddQuestion("edit");
     }
+    if (node.type === "flowConnection") {
+      setModalAddFlowConnection("edit");
+    }
   };
 
   const clickNode = (event, node) => {
@@ -543,6 +568,7 @@ const FlowBuilderConfig = () => {
     setModalAddMenu(null);
     setModalAddOpenAI(null);
     setModalAddTypebot(null);
+    setModalAddFlowConnection(null);
   };
 
   const actions = [
@@ -650,6 +676,17 @@ const FlowBuilderConfig = () => {
       name: "Pergunta",
       type: "question",
     },
+    {
+      icon: (
+        <ImportExport
+          sx={{
+            color: "#9C27B0",
+          }}
+        />
+      ),
+      name: "Conexão de Fluxo",
+      type: "flowConnection",
+    },
   ];
 
   const clickActions = (type) => {
@@ -681,6 +718,9 @@ const FlowBuilderConfig = () => {
         break
       case "question":
         setModalAddQuestion("create");
+        break
+      case "flowConnection":
+        setModalAddFlowConnection("create");
         break
       default:
     }
@@ -838,6 +878,14 @@ const FlowBuilderConfig = () => {
         data={dataNode}
         onUpdate={updateNode}
         close={setModalAddQuestion}
+      />
+
+      <FlowBuilderAddFlowConnectionModal
+        open={modalAddFlowConnection}
+        onSave={flowConnectionAdd}
+        data={dataNode}
+        onUpdate={updateNode}
+        close={setModalAddFlowConnection}
       />
 
       <MainHeader>

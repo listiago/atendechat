@@ -109,6 +109,34 @@ module.exports = {
                             createdAt: new Date(),
                             updatedAt: new Date()
                         },
+                        {
+                            key: "enableWelcomeFlow",
+                            value: "enabled",
+                            companyId: 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        },
+                        {
+                            key: "enablePhraseFlow",
+                            value: "enabled",
+                            companyId: 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        },
+                        {
+                            key: "enableNotPhraseFlow",
+                            value: "enabled",
+                            companyId: 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        },
+                        {
+                            key: "flowMessageDelay",
+                            value: "1000",
+                            companyId: 1,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        },
 
                     ],
                     { transaction: t }

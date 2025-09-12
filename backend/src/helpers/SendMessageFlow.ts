@@ -22,18 +22,22 @@ export const SendMessageFlow = async (
 
     let message;
 
-    const templateButtons = [
-      {index: 1, urlButton: {displayText: '⭐ Star Baileys on GitHub!', url: 'https://github.com/adiwajshing/Baileys'}},
-      {index: 2, callButton: {displayText: 'Call me!+1 (234) 5678-901'}},
-      {index: 3, quickReplyButton: {displayText: 'This is a reply, just like normal buttons!', id: 'id-like-buttons-message'}},
-  ]
-
-    const body = `\u200e${messageData.body}`;
-    message = ''; // await wbot.sendMessage(chatId, { text: body, templateButtons: templateButtons }); TODO: Fix error on this template Buttons
-
+    if (messageData.mediaPath) {
+      // Send media message
+      const mediaMessage = {
+        image: { url: messageData.mediaPath },
+        caption: messageData.body
+      };
+      message = await wbot.sendMessage(chatId, mediaMessage);
+    } else {
+      // Send text message
+      const body = `\u200e${messageData.body}`;
+      message = await wbot.sendMessage(chatId, { text: body });
+    }
 
     return message;
   } catch (err: any) {
+    console.error('Error sending message flow:', err);
     throw new Error(err);
   }
 };

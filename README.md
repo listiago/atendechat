@@ -14,7 +14,7 @@ O backend é feito em Express e possui toda a estrutura organizada dentro dessa 
 A pasta de instalador dentro dessa repositório é uma cópia do instalador usado para que os clientes de sistemas possam fazer o clone dentro da pasta home de seus servidores e seguirem com a instalação automática de todas as dependências do projeto
 
 Link para o repositório do instalador atualizado:
-- [Instalador](https://github.com/atendechat-org/instalador)
+- [Instalador](https://github.com/listiago/atendechat-installer)
 
 Consulte **[Implantação](#-implanta%C3%A7%C3%A3o)** para saber como implantar o projeto.
 

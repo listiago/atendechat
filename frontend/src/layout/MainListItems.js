@@ -463,6 +463,16 @@ const MainListItems = (props) => {
                       </ListItemIcon>
                       <ListItemText primary="Conversa" />
                     </ListItem>
+
+                    <ListItem
+                        onClick={() => history.push("/flow-default")}
+                        button
+                    >
+                      <ListItemIcon>
+                        <AccountTree />
+                      </ListItemIcon>
+                      <ListItemText primary="Fluxo Padrão" />
+                    </ListItem>
                   </List>
                 </Collapse>
               </>

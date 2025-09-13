@@ -1,41 +1,44 @@
 import { Request, Response } from "express";
-import ListFlowBuilderService from "../services/FlowBuilderService/ListFlowBuilderService";
-import CreateFlowBuilderService from "../services/FlowBuilderService/CreateFlowBuilderService";
-import UpdateFlowBuilderService from "../services/FlowBuilderService/UpdateFlowBuilderService";
-import DeleteFlowBuilderService from "../services/FlowBuilderService/DeleteFlowBuilderService";
-import CreateFlowDefaultService from "../services/FlowDefaultService/CreateFlowDefaultService";
-import UpdateFlowDefaultService from "../services/FlowDefaultService/UpdateFlowDefaultService";
-import FlowsDefaultGetDataService from "../services/FlowDefaultService/FlowsDefaultGetDataService";
-// import { handleMessage } from "../services/FacebookServices/facebookMessageListener";
+import Whatsapp from "../models/Whatsapp";
 
 export const createFlowDefault = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const { flowIdWelcome, flowIdPhrase } = req.body;
-  const userId = parseInt(req.user.id);
+  const { whatsappId, flowIdWelcome } = req.body;
   const { companyId } = req.user;
 
-  const flow = await CreateFlowDefaultService({
-    userId,
-    companyId,
-    flowIdWelcome,
-    flowIdPhrase
+  const whatsapp = await Whatsapp.findOne({
+    where: { id: whatsappId, companyId }
   });
 
-  return res.status(200).json(flow);
+  if (!whatsapp) {
+    return res.status(404).json({ error: "WhatsApp not found" });
+  }
+
+  await whatsapp.update({ flowIdWelcome });
+
+  return res.status(200).json(whatsapp);
 };
 
 export const updateFlow = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
+  const { whatsappId, flowIdWelcome } = req.body;
   const { companyId } = req.user;
-  const { flowIdWelcome, flowIdPhrase } = req.body;
 
-  const flow = await UpdateFlowDefaultService({ companyId, flowIdWelcome, flowIdPhrase });
+  const whatsapp = await Whatsapp.findOne({
+    where: { id: whatsappId, companyId }
+  });
 
-  return res.status(200).json(flow);
+  if (!whatsapp) {
+    return res.status(404).json({ error: "WhatsApp not found" });
+  }
+
+  await whatsapp.update({ flowIdWelcome });
+
+  return res.status(200).json(whatsapp);
 };
 
 export const getFlows = async (
@@ -44,9 +47,10 @@ export const getFlows = async (
 ): Promise<Response> => {
   const { companyId } = req.user;
 
-  const flows = await FlowsDefaultGetDataService({
-    companyId
+  const whatsapps = await Whatsapp.findAll({
+    where: { companyId },
+    attributes: ['id', 'name', 'flowIdWelcome']
   });
 
-  return res.status(200).json(flows);
+  return res.status(200).json(whatsapps);
 };

@@ -2,6 +2,7 @@ import AppError from "../../errors/AppError";
 import { WebhookModel } from "../../models/Webhook";
 import { sendMessageFlow } from "../../controllers/MessageController";
 import { IConnections, INodes } from "./DispatchWebHookService";
+import { FlowBuilderModel } from "../../models/FlowBuilder";
 import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
 import { ParsedQs } from "qs";
@@ -338,6 +339,47 @@ export const ActionsWebhookService = async (
             hashFlowId: hashWebhookId,
             flowStopped: idFlowDb.toString()
           });
+        }
+        break;
+      }
+
+      if (nodeSelected.type === "flowConnection") {
+        const connectedFlowId = nodeSelected.data.flowId;
+        if (connectedFlowId) {
+          const connectedFlow = await FlowBuilderModel.findOne({
+            where: { id: connectedFlowId, company_id: companyId }
+          });
+
+          if (connectedFlow && connectedFlow.flow) {
+            // Start the connected flow
+            const connectedNodes: INodes[] = connectedFlow.flow["nodes"];
+            const connectedConnections: IConnections[] = connectedFlow.flow["connections"];
+
+            // Update ticket to start the new flow
+            await ticket.update({
+              flowStopped: connectedFlowId.toString(),
+              lastFlowId: null, // Start from beginning
+              hashFlowId: null,
+              flowWebhook: true
+            });
+
+            // Start the connected flow
+            await ActionsWebhookService(
+              whatsappId,
+              connectedFlowId,
+              companyId,
+              connectedNodes,
+              connectedConnections,
+              connectedFlow.flow["nodes"][0].id, // Start from first node
+              dataWebhook,
+              details,
+              null, // New hash
+              undefined,
+              ticket.id,
+              numberPhrase,
+              msg
+            );
+          }
         }
         break;
       }

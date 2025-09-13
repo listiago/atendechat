@@ -2282,6 +2282,54 @@ const handleMessage = async (
       groupContact
     );
 
+    // Trigger default flow for new contacts
+    const messageCount = await Message.count({
+      where: { contactId: contact.id, companyId }
+    });
+    if (messageCount === 0 && whatsapp.flowIdWelcome && !msg.key.fromMe && !isGroup) {
+      const enableWelcomeFlow = await Setting.findOne({
+        where: {
+          key: "enableWelcomeFlow",
+          companyId
+        }
+      });
+      if (enableWelcomeFlow?.value === "enabled") {
+        const flow = await FlowBuilderModel.findOne({
+          where: {
+            id: whatsapp.flowIdWelcome
+          }
+        });
+        if (flow) {
+          const nodes: INodes[] = flow.flow["nodes"];
+          const connections: IConnections[] = flow.flow["connections"];
+          const mountDataContact = {
+            number: contact.number,
+            name: contact.name,
+            email: contact.email
+          };
+          try {
+            await ActionsWebhookService(
+              whatsapp.id,
+              whatsapp.flowIdWelcome,
+              companyId,
+              nodes,
+              connections,
+              flow.flow["nodes"][0].id,
+              null,
+              "",
+              "",
+              null,
+              ticket.id,
+              mountDataContact,
+              msg
+            );
+          } catch (error) {
+            console.error('Error triggering default flow:', error);
+          }
+        }
+      }
+    }
+
     await provider(ticket, msg, companyId, contact, wbot as WASocket);
 
     // voltar para o menu inicial

@@ -2513,7 +2513,7 @@ const handleMessage = async (
 
         const { answerKey, fieldName } = nodeSelected.data.typebotIntegration;
 
-        // Save response to variables and contact field
+        // Save response to variables
         const updatedDataWebhook = {
           ...ticket.dataWebhook,
           variables: {
@@ -2522,8 +2522,8 @@ const handleMessage = async (
           }
         };
 
-        // Save to contact custom field if fieldName is specified
-        if (fieldName) {
+        // Save to contact custom field only if fieldName is provided and not empty
+        if (fieldName && fieldName.trim() !== "") {
           await contact.update({
             [fieldName]: body
           });

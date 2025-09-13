@@ -233,14 +233,13 @@ const FlowBuilderAddQuestionModal = ({
 
                 <Field
                   as={TextField}
-                  label="Campo para salvar a informação no usuário"
+                  label="Campo para salvar a informação no usuário (opcional)"
                   name="fieldName"
                   error={touched.fieldName && Boolean(errors.fieldName)}
                   helperText={touched.fieldName && errors.fieldName}
                   variant="outlined"
                   margin="dense"
                   fullWidth
-                  required
                 />
 
                 {/* Saídas da Pergunta */}

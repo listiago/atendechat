@@ -28,6 +28,7 @@ import { AuthContext } from "../context/Auth/AuthContext";
 import BackdropLoading from "../components/BackdropLoading";
 import { i18n } from "../translate/i18n";
 import AnnouncementsPopover from "../components/AnnouncementsPopover";
+import toastError from "../errors/toastError";
 
 import logo from "../assets/logo.png";
 import { SocketContext } from "../context/Socket/SocketContext";

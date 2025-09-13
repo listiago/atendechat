@@ -67,17 +67,24 @@ const FlowDefault = () => {
       try {
         const { data } = await api.get("/flowdefault");
         // data is an array of whatsapps with flowIdWelcome
-        const whatsappData = data.find(w => w.id === selectedWhatsApp);
-        if (whatsappData) {
-          setSelectedFlow(whatsappData.flowIdWelcome || "");
+        if (selectedWhatsApp) {
+          const whatsappData = data.find(w => w.id === selectedWhatsApp);
+          if (whatsappData) {
+            setSelectedFlow(whatsappData.flowIdWelcome || "");
+          }
+        } else {
+          // If no WhatsApp selected, find the first one with a flow configured
+          const configuredWhatsapp = data.find(w => w.flowIdWelcome);
+          if (configuredWhatsapp) {
+            setSelectedWhatsApp(configuredWhatsapp.id);
+            setSelectedFlow(configuredWhatsapp.flowIdWelcome || "");
+          }
         }
       } catch (err) {
         toastError(err);
       }
     };
-    if (selectedWhatsApp) {
-      fetchCurrentFlowDefault();
-    }
+    fetchCurrentFlowDefault();
   }, [selectedWhatsApp]);
 
   const handleSave = async () => {
@@ -92,6 +99,12 @@ const FlowDefault = () => {
         flowIdWelcome: selectedFlow,
       });
       toast.success("Fluxo padrão salvo com sucesso");
+      // Refresh the data
+      const { data } = await api.get("/flowdefault");
+      const whatsappData = data.find(w => w.id === selectedWhatsApp);
+      if (whatsappData) {
+        setSelectedFlow(whatsappData.flowIdWelcome || "");
+      }
     } catch (err) {
       toastError(err);
     } finally {

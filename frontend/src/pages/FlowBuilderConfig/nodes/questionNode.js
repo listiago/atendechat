@@ -124,12 +124,40 @@ export default memo(({ data, isConnectable, id }) => {
                 </Typography>
               </div>
       </div>
+      {/* Response output (green) */}
       <Handle
         type="source"
         position="right"
-        id="a"
+        id="response"
         style={{
-          background: "#0000FF",
+          background: "#4CAF50",
+          width: "18px",
+          height: "18px",
+          top: "60%",
+          right: "-11px",
+          cursor: "pointer",
+        }}
+        isConnectable={isConnectable}
+      >
+        <ArrowForwardIos
+          sx={{
+            color: "#ffff",
+            width: "10px",
+            height: "10px",
+            marginLeft: "2.9px",
+            marginBottom: "1px",
+            pointerEvents: "none",
+          }}
+        />
+      </Handle>
+
+      {/* No response output (red) */}
+      <Handle
+        type="source"
+        position="right"
+        id="noResponse"
+        style={{
+          background: "#F44336",
           width: "18px",
           height: "18px",
           top: "90%",

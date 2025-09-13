@@ -5,7 +5,7 @@ import { Formik, Form, Field } from "formik";
 import { makeStyles } from "@material-ui/core/styles";
 import { green } from "@material-ui/core/colors";
 import Button from "@material-ui/core/Button";
-import { MenuItem, FormControl, InputLabel, Select } from "@material-ui/core";
+import { MenuItem, FormControl, InputLabel, Select, Typography } from "@material-ui/core";
 import { Visibility, VisibilityOff } from "@material-ui/icons";
 import { InputAdornment, IconButton } from "@material-ui/core";
 import Dialog from "@material-ui/core/Dialog";
@@ -58,6 +58,10 @@ const FlowBuilderAddQuestionModal = ({
   const initialState = {
     message: "",
     answerKey: "",
+    waitTime: 1,
+    waitUnit: "minutes",
+    waitMessage: "",
+    fieldName: "",
   };
 
   const [message, setMessage] = useState();
@@ -170,31 +174,85 @@ const FlowBuilderAddQuestionModal = ({
           {({ touched, errors, isSubmitting, values }) => (
             <Form style={{ width: "100%" }}>
               <DialogContent dividers>
-                <TextField
-                  label={"Mensagem"}
-                  multiline
-                  rows={7}
-                  name="message"
-                  error={touched.message && Boolean(errors.message)}
-                  helperText={touched.message && errors.message}
-                  variant="outlined"
-                  margin="dense"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  fullWidth
-                  required
-                />
+                {/* Configurações iniciais da Pergunta */}
+                <Typography variant="h6" style={{ marginBottom: 16 }}>
+                  1. Configurações iniciais da Pergunta
+                </Typography>
+
+                <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                  <Field
+                    as={TextField}
+                    label="Tempo mínimo caso o cliente não responda"
+                    name="waitTime"
+                    type="number"
+                    error={touched.waitTime && Boolean(errors.waitTime)}
+                    helperText={touched.waitTime && errors.waitTime}
+                    variant="outlined"
+                    margin="dense"
+                    style={{ flex: 1 }}
+                    required
+                    inputProps={{ min: 1 }}
+                  />
+                  <FormControl variant="outlined" margin="dense" style={{ minWidth: 120 }}>
+                    <InputLabel>Unidade</InputLabel>
+                    <Field
+                      as={Select}
+                      name="waitUnit"
+                      label="Unidade"
+                      error={touched.waitUnit && Boolean(errors.waitUnit)}
+                    >
+                      <MenuItem value="minutes">Minutos</MenuItem>
+                      <MenuItem value="hours">Horas</MenuItem>
+                      <MenuItem value="days">Dias</MenuItem>
+                    </Field>
+                  </FormControl>
+                </div>
+
+                {/* Mensagem antes da espera */}
+                <Typography variant="h6" style={{ marginBottom: 16, marginTop: 24 }}>
+                  2. Mensagem antes da espera
+                </Typography>
+
                 <Field
                   as={TextField}
-                  label="Salvar resposta"
-                  name="answerKey"
-                  error={touched.answerKey && Boolean(errors.answerKey)}
-                  helperText={touched.answerKey && errors.answerKey}
+                  label="Mensagem antes de aguardar a resposta"
+                  name="waitMessage"
+                  multiline
+                  rows={4}
+                  error={touched.waitMessage && Boolean(errors.waitMessage)}
+                  helperText={touched.waitMessage && errors.waitMessage}
+                  variant="outlined"
+                  margin="dense"
+                  fullWidth
+                />
+
+                {/* Salvar resposta */}
+                <Typography variant="h6" style={{ marginBottom: 16, marginTop: 24 }}>
+                  3. Salvar resposta
+                </Typography>
+
+                <Field
+                  as={TextField}
+                  label="Campo para salvar a informação no usuário"
+                  name="fieldName"
+                  error={touched.fieldName && Boolean(errors.fieldName)}
+                  helperText={touched.fieldName && errors.fieldName}
                   variant="outlined"
                   margin="dense"
                   fullWidth
                   required
                 />
+
+                {/* Saídas da Pergunta */}
+                <Typography variant="h6" style={{ marginBottom: 16, marginTop: 24 }}>
+                  4. Saídas da Pergunta
+                </Typography>
+
+                <Typography variant="body2" color="textSecondary" style={{ marginBottom: 16 }}>
+                  Esta pergunta terá duas saídas:
+                  <br />• Saída verde (resposta): quando o usuário responder dentro do tempo
+                  <br />• Saída vermelha (sem resposta): quando o usuário não responder no tempo configurado
+                </Typography>
               </DialogContent>
               <DialogActions>
                 <Button

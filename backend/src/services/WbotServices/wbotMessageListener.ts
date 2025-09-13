@@ -2511,44 +2511,57 @@ const handleMessage = async (
 
         const connections: IConnections[] = flow.flow["connections"];
 
-        const { message, answerKey } = nodeSelected.data.typebotIntegration;
-        const oldDataWebhook = ticket.dataWebhook;
+        const { answerKey, fieldName } = nodeSelected.data.typebotIntegration;
 
-        const nodeIndex = nodes.findIndex(node => node.id === nodeSelected.id);
-
-        const lastFlowId = nodes[nodeIndex + 1].id;
-        await ticket.update({
-          lastFlowId: lastFlowId,
-          dataWebhook: {
-            variables: {
-              [answerKey]: body
-            }
+        // Save response to variables and contact field
+        const updatedDataWebhook = {
+          ...ticket.dataWebhook,
+          variables: {
+            ...ticket.dataWebhook?.variables,
+            [answerKey]: body
           }
-        });
-
-        await ticket.save();
-
-        const mountDataContact = {
-          number: contact.number,
-          name: contact.name,
-          email: contact.email
         };
 
-        await ActionsWebhookService(
-          whatsapp.id,
-          parseInt(ticket.flowStopped),
-          ticket.companyId,
-          nodes,
-          connections,
-          lastFlowId,
-          null,
-          "",
-          "",
-          "",
-          ticket.id,
-          mountDataContact,
-          msg
+        // Save to contact custom field if fieldName is specified
+        if (fieldName) {
+          await contact.update({
+            [fieldName]: body
+          });
+        }
+
+        // Find the "response" connection (green output)
+        const responseConnection = connections.find(
+          conn => conn.source === nodeSelected.id && conn.sourceHandle === "response"
         );
+
+        if (responseConnection) {
+          await ticket.update({
+            lastFlowId: responseConnection.target,
+            dataWebhook: updatedDataWebhook
+          });
+
+          const mountDataContact = {
+            number: contact.number,
+            name: contact.name,
+            email: contact.email
+          };
+
+          await ActionsWebhookService(
+            whatsapp.id,
+            parseInt(ticket.flowStopped),
+            ticket.companyId,
+            nodes,
+            connections,
+            responseConnection.target,
+            updatedDataWebhook,
+            "",
+            "",
+            "",
+            ticket.id,
+            mountDataContact,
+            msg
+          );
+        }
       }
 
       return;

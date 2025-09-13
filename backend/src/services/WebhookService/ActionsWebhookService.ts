@@ -13,6 +13,7 @@ import Contact from "../../models/Contact";
 import { SendMessage } from "../../helpers/SendMessage";
 import GetDefaultWhatsApp from "../../helpers/GetDefaultWhatsApp";
 import Ticket from "../../models/Ticket";
+import Message from "../../models/Message";
 import fs from "fs";
 import GetWhatsappWbot from "../../helpers/GetWhatsappWbot";
 import path from "path";
@@ -40,6 +41,7 @@ import {logger} from "../../utils/logger";
 //import CompaniesSettings from "../../models/CompaniesSettings";
 //import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
 import { delay } from "bluebird";
+import { Op } from "sequelize";
 import typebotListener from "../TypebotServices/typebotListener";
 import { getWbot } from "../../libs/wbot";
 import { proto } from "@whiskeysockets/baileys";
@@ -312,7 +314,14 @@ export const ActionsWebhookService = async (
         const variables = ticket?.dataWebhook?.variables;
 
         if (!variables || variables === undefined || variables === null) {
-          const { message } = nodeSelected.data.typebotIntegration;
+          const {
+            message,
+            waitTime,
+            waitUnit,
+            waitMessage,
+            fieldName
+          } = nodeSelected.data.typebotIntegration;
+
           const ticketDetails = await ShowTicketService(ticket.id, companyId);
 
           const bodyFila = formatBody(`${message}`, ticket.contact);
@@ -332,13 +341,98 @@ export const ActionsWebhookService = async (
             lastMessage: bodyFila
           });
 
+          // Send wait message if configured
+          if (waitMessage) {
+            await delay(2000);
+            await typeSimulation(ticket, "composing");
+
+            await SendWhatsAppMessage({
+              body: formatBody(waitMessage, ticket.contact),
+              ticket: ticketDetails,
+              quotedMsg: null
+            });
+
+            SetTicketMessagesAsRead(ticketDetails);
+          }
+
+          // Calculate timeout in milliseconds
+          let timeoutMs = waitTime * 60 * 1000; // default minutes
+          if (waitUnit === "hours") {
+            timeoutMs = waitTime * 60 * 60 * 1000;
+          } else if (waitUnit === "days") {
+            timeoutMs = waitTime * 24 * 60 * 60 * 1000;
+          }
+
+          // Store question data in ticket for timeout handling
           await ticket.update({
             userId: null,
             companyId: companyId,
             lastFlowId: nodeSelected.id,
             hashFlowId: hashWebhookId,
-            flowStopped: idFlowDb.toString()
+            flowStopped: idFlowDb.toString(),
+            dataWebhook: {
+              ...dataWebhook,
+              questionTimeout: {
+                nodeId: nodeSelected.id,
+                fieldName: fieldName,
+                timeoutAt: Date.now() + timeoutMs,
+                flowId: idFlowDb,
+                companyId: companyId,
+                whatsappId: whatsappId
+              }
+            }
           });
+
+          // Schedule timeout check
+          setTimeout(async () => {
+            try {
+              const currentTicket = await Ticket.findOne({
+                where: { id: ticket.id, companyId }
+              });
+
+              if (currentTicket && currentTicket.lastFlowId === nodeSelected.id) {
+                // Check if response was received
+                const recentMessages = await Message.findAll({
+                  where: {
+                    ticketId: ticket.id,
+                    fromMe: false,
+                    createdAt: {
+                      [Op.gte]: new Date(Date.now() - timeoutMs)
+                    }
+                  },
+                  order: [["createdAt", "DESC"]],
+                  limit: 1
+                });
+
+                if (recentMessages.length === 0) {
+                  // No response received, follow noResponse path
+                  const noResponseConnection = connects.find(
+                    conn => conn.source === nodeSelected.id && conn.sourceHandle === "noResponse"
+                  );
+
+                  if (noResponseConnection) {
+                    await ActionsWebhookService(
+                      whatsappId,
+                      idFlowDb,
+                      companyId,
+                      nodes,
+                      connects,
+                      noResponseConnection.target,
+                      dataWebhook,
+                      details,
+                      hashWebhookId,
+                      undefined,
+                      ticket.id,
+                      numberPhrase,
+                      msg
+                    );
+                  }
+                }
+              }
+            } catch (error) {
+              logger.error("Question timeout error:", error);
+            }
+          }, timeoutMs);
         }
         break;
       }

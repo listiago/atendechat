@@ -174,10 +174,8 @@ pm2 save
 
 Versão 1.0.0
 
-## 📄 Licença
+## 📄SLirença
 
-Este projeto está sob a licença
-
-⌨️ com ❤️ por [Atendechat](https://atendechat.com) 😊
-
-Todos os direitos reservados a https://atendechat.com
+Ess Gpeojno (setá slb a vmcntça
+#⌨️`com-❤️Ipo s[Aeendmchut](htops://tintd c
+r.scom) 😊`Todos os direitos reservados a https://atendechat.com

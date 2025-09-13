@@ -337,26 +337,31 @@ export const ActionsWebhookService = async (
         if (typeof message === 'string' && message.trim()) {
           questionMessage = formatBody(message, ticketDetails.contact);
         } else {
-          logger.warn(`[QUESTION NODE] Invalid message format: ${message}`);
-          questionMessage = "Por favor, responda à pergunta.";
+          logger.warn(`[QUESTION NODE] Invalid or empty message: ${message}`);
+          // Skip sending message if it's invalid/empty
+          logger.info(`[QUESTION NODE] Skipping invalid message, proceeding with timeout setup`);
         }
 
-        logger.info(`[QUESTION NODE] Sending question: "${questionMessage}"`);
+        if (questionMessage && questionMessage.trim()) {
+          logger.info(`[QUESTION NODE] Sending question: "${questionMessage}"`);
 
-        await delay(3000);
-        await typeSimulation(ticketDetails, "composing");
+          await delay(3000);
+          await typeSimulation(ticketDetails, "composing");
 
-        await SendWhatsAppMessage({
-          body: questionMessage,
-          ticket: ticketDetails,
-          quotedMsg: null
-        });
+          await SendWhatsAppMessage({
+            body: questionMessage,
+            ticket: ticketDetails,
+            quotedMsg: null
+          });
 
-        SetTicketMessagesAsRead(ticketDetails);
+          SetTicketMessagesAsRead(ticketDetails);
 
-        await ticketDetails.update({
-          lastMessage: questionMessage
-        });
+          await ticketDetails.update({
+            lastMessage: questionMessage
+          });
+        } else {
+          logger.info(`[QUESTION NODE] No valid message to send, proceeding with timeout setup only`);
+        }
 
         // Send wait message if configured
         if (waitMessage && typeof waitMessage === 'string' && waitMessage.trim()) {

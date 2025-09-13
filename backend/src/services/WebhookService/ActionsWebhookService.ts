@@ -446,6 +446,9 @@ export const ActionsWebhookService = async (
 
               if (recentMessages.length === 0) {
                 // No response received, follow noResponse path
+                logger.info(`[QUESTION TIMEOUT] Looking for noResponse connection for node ${nodeSelected.id}`);
+                logger.info(`[QUESTION TIMEOUT] Available connections:`, connects.map(c => ({ source: c.source, sourceHandle: c.sourceHandle, target: c.target })));
+
                 const noResponseConnection = connects.find(
                   conn => conn.source === nodeSelected.id && conn.sourceHandle === "noResponse"
                 );
@@ -455,23 +458,33 @@ export const ActionsWebhookService = async (
                 if (noResponseConnection) {
                   logger.info(`[QUESTION TIMEOUT] Following noResponse path to node: ${noResponseConnection.target}`);
 
-                  await ActionsWebhookService(
-                    whatsappId,
-                    idFlowDb,
-                    companyId,
-                    nodes,
-                    connects,
-                    noResponseConnection.target,
-                    dataWebhook,
-                    details,
-                    hashWebhookId,
-                    undefined,
-                    ticketToUse.id,
-                    numberPhrase,
-                    msg
-                  );
+                  // Verify target node exists
+                  const targetNode = nodes.find(node => node.id === noResponseConnection.target);
+                  logger.info(`[QUESTION TIMEOUT] Target node exists: ${!!targetNode}`, targetNode ? { id: targetNode.id, type: targetNode.type } : null);
+
+                  try {
+                    await ActionsWebhookService(
+                      whatsappId,
+                      idFlowDb,
+                      companyId,
+                      nodes,
+                      connects,
+                      noResponseConnection.target,
+                      dataWebhook,
+                      details,
+                      hashWebhookId,
+                      undefined,
+                      ticketToUse.id,
+                      numberPhrase,
+                      msg
+                    );
+                    logger.info(`[QUESTION TIMEOUT] Successfully triggered noResponse path`);
+                  } catch (error) {
+                    logger.error(`[QUESTION TIMEOUT] Error triggering noResponse path:`, error);
+                  }
                 } else {
                   logger.warn(`[QUESTION TIMEOUT] No noResponse connection found for node ${nodeSelected.id}`);
+                  logger.warn(`[QUESTION TIMEOUT] Expected connection: source=${nodeSelected.id}, sourceHandle=noResponse`);
                 }
               } else {
                 logger.info(`[QUESTION TIMEOUT] Response received, not triggering timeout`);

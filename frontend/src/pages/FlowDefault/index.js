@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import {
   Paper,
-  Grid,
   Button,
   Typography,
   Card,
@@ -14,7 +13,6 @@ import {
   Box,
 } from "@material-ui/core";
 import { WhatsAppsContext } from "../../context/WhatsApp/WhatsAppsContext";
-import { AuthContext } from "../../context/Auth/AuthContext";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import { toast } from "react-toastify";
@@ -42,12 +40,10 @@ const useStyles = makeStyles((theme) => ({
 const FlowDefault = () => {
   const classes = useStyles();
   const { whatsApps } = useContext(WhatsAppsContext);
-  const { user } = useContext(AuthContext);
 
   const [selectedWhatsApp, setSelectedWhatsApp] = useState("");
   const [flows, setFlows] = useState([]);
   const [selectedFlow, setSelectedFlow] = useState("");
-  const [currentFlowDefault, setCurrentFlowDefault] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

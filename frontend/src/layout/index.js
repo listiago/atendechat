@@ -1,6 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
 import clsx from "clsx";
-import moment from "moment";
 import {
   makeStyles,
   Drawer,
@@ -27,9 +26,7 @@ import NotificationsVolume from "../components/NotificationsVolume";
 import UserModal from "../components/UserModal";
 import { AuthContext } from "../context/Auth/AuthContext";
 import BackdropLoading from "../components/BackdropLoading";
-import DarkMode from "../components/DarkMode";
 import { i18n } from "../translate/i18n";
-import toastError from "../errors/toastError";
 import AnnouncementsPopover from "../components/AnnouncementsPopover";
 
 import logo from "../assets/logo.png";
@@ -331,13 +328,6 @@ const LoggedInLayout = ({ children, themeToggle }) => {
   const handleRefreshPage = () => {
     window.location.reload(false);
   }
-
-  const handleMenuItemClick = () => {
-    const { innerWidth: width } = window;
-    if (width <= 600) {
-      setDrawerOpen(false);
-    }
-  };
 
   const toggleColorMode = () => {
     colorMode.toggleColorMode();

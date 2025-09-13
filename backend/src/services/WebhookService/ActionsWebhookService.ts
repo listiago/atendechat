@@ -310,130 +310,176 @@ export const ActionsWebhookService = async (
       }
 
       if (nodeSelected.type === "question") {
-        const webhook = ticket?.dataWebhook;
-        const variables = ticket?.dataWebhook?.variables;
+        const {
+          message,
+          waitTime,
+          waitUnit,
+          waitMessage,
+          fieldName
+        } = nodeSelected.data.typebotIntegration;
 
-        if (!variables || variables === undefined || variables === null) {
-          const {
-            message,
-            waitTime,
-            waitUnit,
-            waitMessage,
-            fieldName
-          } = nodeSelected.data.typebotIntegration;
+        logger.info(`[QUESTION NODE] Starting question node ${nodeSelected.id} for ticket ${ticket?.id || idTicket}`);
 
-          const ticketDetails = await ShowTicketService(ticket.id, companyId);
+        // Get ticket details - ensure we have a valid ticket
+        const ticketToUse = ticket || await Ticket.findOne({
+          where: { id: idTicket, companyId }
+        });
 
-          const bodyFila = formatBody(`${message}`, ticket.contact);
+        if (!ticketToUse) {
+          logger.error(`[QUESTION NODE] No ticket found for id ${idTicket}`);
+          break;
+        }
 
-          await delay(3000);
-          await typeSimulation(ticket, "composing");
+        const ticketDetails = await ShowTicketService(ticketToUse.id, companyId);
 
+        // Format the question message
+        let questionMessage = message;
+        if (typeof message === 'string' && message.trim()) {
+          questionMessage = formatBody(message, ticketDetails.contact);
+        } else {
+          logger.warn(`[QUESTION NODE] Invalid message format: ${message}`);
+          questionMessage = "Por favor, responda à pergunta.";
+        }
+
+        logger.info(`[QUESTION NODE] Sending question: "${questionMessage}"`);
+
+        await delay(3000);
+        await typeSimulation(ticketDetails, "composing");
+
+        await SendWhatsAppMessage({
+          body: questionMessage,
+          ticket: ticketDetails,
+          quotedMsg: null
+        });
+
+        SetTicketMessagesAsRead(ticketDetails);
+
+        await ticketDetails.update({
+          lastMessage: questionMessage
+        });
+
+        // Send wait message if configured
+        if (waitMessage && typeof waitMessage === 'string' && waitMessage.trim()) {
+          await delay(2000);
+          await typeSimulation(ticketDetails, "composing");
+
+          const waitMsgBody = formatBody(waitMessage, ticketDetails.contact);
           await SendWhatsAppMessage({
-            body: bodyFila,
+            body: waitMsgBody,
             ticket: ticketDetails,
             quotedMsg: null
           });
 
           SetTicketMessagesAsRead(ticketDetails);
+        }
 
-          await ticketDetails.update({
-            lastMessage: bodyFila
-          });
+        // Calculate timeout in milliseconds
+        let timeoutMs = waitTime * 60 * 1000; // default minutes
+        if (waitUnit === "hours") {
+          timeoutMs = waitTime * 60 * 60 * 1000;
+        } else if (waitUnit === "days") {
+          timeoutMs = waitTime * 24 * 60 * 60 * 1000;
+        }
 
-          // Send wait message if configured
-          if (waitMessage) {
-            await delay(2000);
-            await typeSimulation(ticket, "composing");
+        // Store question timestamp for proper timeout checking
+        const questionSentAt = new Date();
 
-            await SendWhatsAppMessage({
-              body: formatBody(waitMessage, ticket.contact),
-              ticket: ticketDetails,
-              quotedMsg: null
+        logger.info(`[QUESTION NODE] Setting timeout for ${timeoutMs}ms (${waitTime} ${waitUnit}) - Question sent at: ${questionSentAt.toISOString()}`);
+
+        // Store question data in ticket for timeout handling
+        await ticketToUse.update({
+          userId: null,
+          companyId: companyId,
+          lastFlowId: nodeSelected.id,
+          hashFlowId: hashWebhookId,
+          flowStopped: idFlowDb.toString(),
+          dataWebhook: {
+            ...dataWebhook,
+            questionTimeout: {
+              nodeId: nodeSelected.id,
+              fieldName: fieldName,
+              timeoutAt: Date.now() + timeoutMs,
+              questionSentAt: questionSentAt,
+              flowId: idFlowDb,
+              companyId: companyId,
+              whatsappId: whatsappId
+            }
+          }
+        });
+
+        // Schedule timeout check
+        setTimeout(async () => {
+          try {
+            logger.info(`[QUESTION TIMEOUT] Checking timeout for ticket ${ticketToUse.id}, node ${nodeSelected.id}`);
+
+            const currentTicket = await Ticket.findOne({
+              where: { id: ticketToUse.id, companyId }
             });
 
-            SetTicketMessagesAsRead(ticketDetails);
-          }
-
-          // Calculate timeout in milliseconds
-          let timeoutMs = waitTime * 60 * 1000; // default minutes
-          if (waitUnit === "hours") {
-            timeoutMs = waitTime * 60 * 60 * 1000;
-          } else if (waitUnit === "days") {
-            timeoutMs = waitTime * 24 * 60 * 60 * 1000;
-          }
-
-          // Store question data in ticket for timeout handling
-          await ticket.update({
-            userId: null,
-            companyId: companyId,
-            lastFlowId: nodeSelected.id,
-            hashFlowId: hashWebhookId,
-            flowStopped: idFlowDb.toString(),
-            dataWebhook: {
-              ...dataWebhook,
-              questionTimeout: {
-                nodeId: nodeSelected.id,
-                fieldName: fieldName,
-                timeoutAt: Date.now() + timeoutMs,
-                flowId: idFlowDb,
-                companyId: companyId,
-                whatsappId: whatsappId
-              }
+            if (!currentTicket) {
+              logger.error(`[QUESTION TIMEOUT] Ticket ${ticketToUse.id} not found`);
+              return;
             }
-          });
 
-          // Schedule timeout check
-          setTimeout(async () => {
-            try {
-              const currentTicket = await Ticket.findOne({
-                where: { id: ticket.id, companyId }
+            logger.info(`[QUESTION TIMEOUT] Current ticket lastFlowId: ${currentTicket.lastFlowId}, expected: ${nodeSelected.id}`);
+
+            if (currentTicket.lastFlowId === nodeSelected.id) {
+              // Check if response was received after the question was sent
+              const recentMessages = await Message.findAll({
+                where: {
+                  ticketId: ticketToUse.id,
+                  fromMe: false,
+                  createdAt: {
+                    [Op.gte]: questionSentAt
+                  }
+                },
+                order: [["createdAt", "DESC"]],
+                limit: 1
               });
 
-              if (currentTicket && currentTicket.lastFlowId === nodeSelected.id) {
-                // Check if response was received
-                const recentMessages = await Message.findAll({
-                  where: {
-                    ticketId: ticket.id,
-                    fromMe: false,
-                    createdAt: {
-                      [Op.gte]: new Date(Date.now() - timeoutMs)
-                    }
-                  },
-                  order: [["createdAt", "DESC"]],
-                  limit: 1
-                });
+              logger.info(`[QUESTION TIMEOUT] Found ${recentMessages.length} messages after question was sent`);
 
-                if (recentMessages.length === 0) {
-                  // No response received, follow noResponse path
-                  const noResponseConnection = connects.find(
-                    conn => conn.source === nodeSelected.id && conn.sourceHandle === "noResponse"
+              if (recentMessages.length === 0) {
+                // No response received, follow noResponse path
+                const noResponseConnection = connects.find(
+                  conn => conn.source === nodeSelected.id && conn.sourceHandle === "noResponse"
+                );
+
+                logger.info(`[QUESTION TIMEOUT] No response connection found: ${!!noResponseConnection}`);
+
+                if (noResponseConnection) {
+                  logger.info(`[QUESTION TIMEOUT] Following noResponse path to node: ${noResponseConnection.target}`);
+
+                  await ActionsWebhookService(
+                    whatsappId,
+                    idFlowDb,
+                    companyId,
+                    nodes,
+                    connects,
+                    noResponseConnection.target,
+                    dataWebhook,
+                    details,
+                    hashWebhookId,
+                    undefined,
+                    ticketToUse.id,
+                    numberPhrase,
+                    msg
                   );
-
-                  if (noResponseConnection) {
-                    await ActionsWebhookService(
-                      whatsappId,
-                      idFlowDb,
-                      companyId,
-                      nodes,
-                      connects,
-                      noResponseConnection.target,
-                      dataWebhook,
-                      details,
-                      hashWebhookId,
-                      undefined,
-                      ticket.id,
-                      numberPhrase,
-                      msg
-                    );
-                  }
+                } else {
+                  logger.warn(`[QUESTION TIMEOUT] No noResponse connection found for node ${nodeSelected.id}`);
                 }
+              } else {
+                logger.info(`[QUESTION TIMEOUT] Response received, not triggering timeout`);
               }
-            } catch (error) {
-              logger.error("Question timeout error:", error);
+            } else {
+              logger.info(`[QUESTION TIMEOUT] Ticket has moved to different node, timeout cancelled`);
             }
-          }, timeoutMs);
-        }
+          } catch (error) {
+            logger.error("[QUESTION TIMEOUT] Error in timeout handler:", error);
+          }
+        }, timeoutMs);
+
+        logger.info(`[QUESTION NODE] Timeout scheduled for ${new Date(Date.now() + timeoutMs).toISOString()}`);
         break;
       }
 

@@ -1176,3 +1176,4 @@ const replaceMessagesOld = (
     return message;
   }
 };
+//VERSÇÃO COM BLOCO DE PERGUNTA CORRIGIDO

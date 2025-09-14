@@ -2530,9 +2530,20 @@ const handleMessage = async (
         }
 
         // Find the "response" connection (green output)
-        const responseConnection = connections.find(
+        let responseConnection = connections.find(
           conn => conn.source === nodeSelected.id && conn.sourceHandle === "response"
         );
+
+        // If not found, try alternative sourceHandle values
+        if (!responseConnection) {
+          responseConnection = connections.find(
+            conn => conn.source === nodeSelected.id && (
+              conn.sourceHandle === "true" ||
+              conn.sourceHandle === "yes" ||
+              conn.sourceHandle === "green"
+            )
+          );
+        }
 
         if (responseConnection) {
           await ticket.update({
@@ -2561,6 +2572,8 @@ const handleMessage = async (
             mountDataContact,
             msg
           );
+        } else {
+          logger.warn(`[QUESTION RESPONSE] No response connection found for node ${nodeSelected.id}`);
         }
       }
 

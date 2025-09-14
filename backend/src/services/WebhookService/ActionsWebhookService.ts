@@ -449,9 +449,22 @@ export const ActionsWebhookService = async (
                 logger.info(`[QUESTION TIMEOUT] Looking for noResponse connection for node ${nodeSelected.id}`);
                 logger.info(`[QUESTION TIMEOUT] Available connections:`, connects.map(c => ({ source: c.source, sourceHandle: c.sourceHandle, target: c.target })));
 
-                const noResponseConnection = connects.find(
+                // Try different possible sourceHandle values for noResponse
+                let noResponseConnection = connects.find(
                   conn => conn.source === nodeSelected.id && conn.sourceHandle === "noResponse"
                 );
+
+                // If not found, try alternative sourceHandle values
+                if (!noResponseConnection) {
+                  noResponseConnection = connects.find(
+                    conn => conn.source === nodeSelected.id && (
+                      conn.sourceHandle === "no-response" ||
+                      conn.sourceHandle === "timeout" ||
+                      conn.sourceHandle === "red" ||
+                      conn.sourceHandle === "false"
+                    )
+                  );
+                }
 
                 logger.info(`[QUESTION TIMEOUT] No response connection found: ${!!noResponseConnection}`);
 
@@ -485,6 +498,38 @@ export const ActionsWebhookService = async (
                 } else {
                   logger.warn(`[QUESTION TIMEOUT] No noResponse connection found for node ${nodeSelected.id}`);
                   logger.warn(`[QUESTION TIMEOUT] Expected connection: source=${nodeSelected.id}, sourceHandle=noResponse`);
+
+                  // As fallback, try to find any connection from this node that is not the response connection
+                  const allConnectionsFromNode = connects.filter(conn => conn.source === nodeSelected.id);
+                  const responseConnection = allConnectionsFromNode.find(conn => conn.sourceHandle === "response");
+
+                  if (allConnectionsFromNode.length > 1 && responseConnection) {
+                    // If there are multiple connections and we found the response one, use the other one
+                    const otherConnection = allConnectionsFromNode.find(conn => conn.sourceHandle !== "response");
+                    if (otherConnection) {
+                      logger.info(`[QUESTION TIMEOUT] Using fallback connection: ${otherConnection.sourceHandle} -> ${otherConnection.target}`);
+                      try {
+                        await ActionsWebhookService(
+                          whatsappId,
+                          idFlowDb,
+                          companyId,
+                          nodes,
+                          connects,
+                          otherConnection.target,
+                          dataWebhook,
+                          details,
+                          hashWebhookId,
+                          undefined,
+                          ticketToUse.id,
+                          numberPhrase,
+                          msg
+                        );
+                        logger.info(`[QUESTION TIMEOUT] Successfully triggered fallback noResponse path`);
+                      } catch (error) {
+                        logger.error(`[QUESTION TIMEOUT] Error triggering fallback noResponse path:`, error);
+                      }
+                    }
+                  }
                 }
               } else {
                 logger.info(`[QUESTION TIMEOUT] Response received, not triggering timeout`);

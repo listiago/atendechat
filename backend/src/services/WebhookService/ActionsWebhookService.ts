@@ -378,12 +378,39 @@ export const ActionsWebhookService = async (
           SetTicketMessagesAsRead(ticketDetails);
         }
 
-        // Calculate timeout in milliseconds
-        let timeoutMs = waitTime * 60 * 1000; // default minutes
-        if (waitUnit === "hours") {
-          timeoutMs = waitTime * 60 * 60 * 1000;
-        } else if (waitUnit === "days") {
-          timeoutMs = waitTime * 24 * 60 * 60 * 1000;
+        // Validate and parse waitTime
+        let parsedWaitTime = parseInt(waitTime);
+        if (isNaN(parsedWaitTime) || parsedWaitTime <= 0) {
+          logger.warn(`[QUESTION NODE] Invalid waitTime: ${waitTime}, using default 1`);
+          parsedWaitTime = 1;
+        }
+
+        // Validate waitUnit
+        const validUnits = ["minutes", "hours", "days"];
+        let parsedWaitUnit = waitUnit;
+        if (!validUnits.includes(parsedWaitUnit)) {
+          logger.warn(`[QUESTION NODE] Invalid waitUnit: ${waitUnit}, using default 'minutes'`);
+          parsedWaitUnit = "minutes";
+        }
+
+        // Calculate timeout in milliseconds with validation
+        let timeoutMs = parsedWaitTime * 60 * 1000; // default minutes
+        if (parsedWaitUnit === "hours") {
+          timeoutMs = parsedWaitTime * 60 * 60 * 1000;
+        } else if (parsedWaitUnit === "days") {
+          timeoutMs = parsedWaitTime * 24 * 60 * 60 * 1000;
+        }
+
+        // Set minimum timeout to 10 seconds and maximum to 30 days
+        const minTimeout = 10 * 1000; // 10 seconds
+        const maxTimeout = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+        if (timeoutMs < minTimeout) {
+          logger.warn(`[QUESTION NODE] Timeout too short: ${timeoutMs}ms, setting to minimum ${minTimeout}ms`);
+          timeoutMs = minTimeout;
+        } else if (timeoutMs > maxTimeout) {
+          logger.warn(`[QUESTION NODE] Timeout too long: ${timeoutMs}ms, setting to maximum ${maxTimeout}ms`);
+          timeoutMs = maxTimeout;
         }
 
         // Store question timestamp for proper timeout checking
@@ -427,22 +454,35 @@ export const ActionsWebhookService = async (
             }
 
             logger.info(`[QUESTION TIMEOUT] Current ticket lastFlowId: ${currentTicket.lastFlowId}, expected: ${nodeSelected.id}`);
+            logger.info(`[QUESTION TIMEOUT] Current ticket status: ${currentTicket.status}`);
+            logger.info(`[QUESTION TIMEOUT] Current ticket flowWebhook: ${currentTicket.flowWebhook}`);
+
+            // Check if ticket is still in a valid state for timeout processing
+            if (currentTicket.status === "closed" || currentTicket.status === "interrupted") {
+              logger.info(`[QUESTION TIMEOUT] Ticket ${ticketToUse.id} is ${currentTicket.status}, cancelling timeout`);
+              return;
+            }
 
             if (currentTicket.lastFlowId === nodeSelected.id) {
               // Check if response was received after the question was sent
+              // Add a small buffer to account for processing time
+              const bufferTime = new Date(questionSentAt.getTime() + 2000); // 2 second buffer
+
               const recentMessages = await Message.findAll({
                 where: {
                   ticketId: ticketToUse.id,
                   fromMe: false,
                   createdAt: {
-                    [Op.gte]: questionSentAt
+                    [Op.gte]: bufferTime
                   }
                 },
                 order: [["createdAt", "DESC"]],
                 limit: 1
               });
 
-              logger.info(`[QUESTION TIMEOUT] Found ${recentMessages.length} messages after question was sent`);
+              logger.info(`[QUESTION TIMEOUT] Found ${recentMessages.length} messages after question was sent (with 2s buffer)`);
+              logger.info(`[QUESTION TIMEOUT] Question sent at: ${questionSentAt.toISOString()}`);
+              logger.info(`[QUESTION TIMEOUT] Buffer time: ${bufferTime.toISOString()}`);
 
               if (recentMessages.length === 0) {
                 // No response received, follow noResponse path
@@ -533,6 +573,7 @@ export const ActionsWebhookService = async (
                 }
               } else {
                 logger.info(`[QUESTION TIMEOUT] Response received, not triggering timeout`);
+                logger.info(`[QUESTION TIMEOUT] Latest message: ${recentMessages[0].body} at ${recentMessages[0].createdAt}`);
               }
             } else {
               logger.info(`[QUESTION TIMEOUT] Ticket has moved to different node, timeout cancelled`);
@@ -541,6 +582,8 @@ export const ActionsWebhookService = async (
             logger.error("[QUESTION TIMEOUT] Error in timeout handler:", error);
           }
         }, timeoutMs);
+
+        logger.info(`[QUESTION NODE] Question node setup completed for ticket ${ticketToUse.id}`);
 
         logger.info(`[QUESTION NODE] Timeout scheduled for ${new Date(Date.now() + timeoutMs).toISOString()}`);
         break;

@@ -2246,22 +2246,11 @@ const handleMessage = async (
       where: { contactId: contact.id, companyId }
     });
     if (messageCount === 0 && !msg.key.fromMe && !isGroup) {
-      const enableWelcomeFlow = await Setting.findOne({
-        where: {
-          key: "enableWelcomeFlow",
-          companyId
-        }
-      });
-      const flowIdWelcomeSetting = await Setting.findOne({
-        where: {
-          key: "flowIdWelcome",
-          companyId
-        }
-      });
-      if (enableWelcomeFlow?.value === "enabled" && flowIdWelcomeSetting?.value) {
+      // Check if WhatsApp has a configured welcome flow
+      if (whatsapp.flowIdWelcome) {
         const flow = await FlowBuilderModel.findOne({
           where: {
-            id: flowIdWelcomeSetting.value,
+            id: whatsapp.flowIdWelcome,
             company_id: companyId
           }
         });
@@ -2276,7 +2265,7 @@ const handleMessage = async (
           try {
             await ActionsWebhookService(
               whatsapp.id,
-              flowIdWelcomeSetting.value,
+              whatsapp.flowIdWelcome,
               companyId,
               nodes,
               connections,

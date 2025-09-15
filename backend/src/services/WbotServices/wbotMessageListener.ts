@@ -2246,15 +2246,22 @@ const handleMessage = async (
       where: { contactId: contact.id, companyId }
     });
     if (messageCount === 0 && !msg.key.fromMe && !isGroup) {
+      console.log(`[WELCOME FLOW] Checking for new contact: ${contact.name} (${contact.number})`);
+      console.log(`[WELCOME FLOW] WhatsApp flowIdWelcome: ${whatsapp.flowIdWelcome}`);
+      console.log(`[WELCOME FLOW] CompanyId: ${companyId}`);
+
       // Check if WhatsApp has a configured welcome flow
       if (whatsapp.flowIdWelcome) {
+        console.log(`[WELCOME FLOW] Found configured flowId: ${whatsapp.flowIdWelcome}`);
         const flow = await FlowBuilderModel.findOne({
           where: {
             id: whatsapp.flowIdWelcome,
             company_id: companyId
           }
         });
+        console.log(`[WELCOME FLOW] Flow found: ${!!flow}`);
         if (flow) {
+          console.log(`[WELCOME FLOW] Starting flow execution for ticket: ${ticket.id}`);
           const nodes: INodes[] = flow.flow["nodes"];
           const connections: IConnections[] = flow.flow["connections"];
           const mountDataContact = {
@@ -2278,11 +2285,18 @@ const handleMessage = async (
               mountDataContact,
               msg
             );
+            console.log(`[WELCOME FLOW] Flow execution completed successfully`);
           } catch (error) {
-            console.error('Error triggering default flow:', error);
+            console.error('[WELCOME FLOW] Error triggering default flow:', error);
           }
+        } else {
+          console.log(`[WELCOME FLOW] Flow not found in database`);
         }
+      } else {
+        console.log(`[WELCOME FLOW] No flowIdWelcome configured for this WhatsApp`);
       }
+    } else {
+      console.log(`[WELCOME FLOW] Conditions not met - messageCount: ${messageCount}, fromMe: ${msg.key.fromMe}, isGroup: ${isGroup}`);
     }
 
     await provider(ticket, msg, companyId, contact, wbot as WASocket);

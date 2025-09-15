@@ -178,6 +178,13 @@ export const ActionsWebhookService = async (
 
     let ticket = null;
 
+    // Get ticket if idTicket is provided
+    if (idTicket) {
+      ticket = await Ticket.findOne({
+        where: { id: idTicket }
+      });
+    }
+
     let noAlterNext = false;
 
     for (var i = 0; i < lengthLoop; i++) {
@@ -191,9 +198,9 @@ export const ActionsWebhookService = async (
           if (idTicket) {
             console.log("UPDATE4...");
             ticketInit = await Ticket.findOne({
-              where: { id: idTicket, whatsappId }
+              where: { id: idTicket }
             });
-            await ticket.update({
+            await ticketInit.update({
               status: "closed"
             });
           }
@@ -322,7 +329,7 @@ export const ActionsWebhookService = async (
 
         // Get ticket details - ensure we have a valid ticket
         const ticketToUse = ticket || await Ticket.findOne({
-          where: { id: idTicket, companyId }
+          where: { id: idTicket }
         });
 
         if (!ticketToUse) {
@@ -445,7 +452,7 @@ export const ActionsWebhookService = async (
             logger.info(`[QUESTION TIMEOUT] Checking timeout for ticket ${ticketToUse.id}, node ${nodeSelected.id}`);
 
             const currentTicket = await Ticket.findOne({
-              where: { id: ticketToUse.id, companyId }
+              where: { id: ticketToUse.id }
             });
 
             if (!currentTicket) {
@@ -718,7 +725,7 @@ export const ActionsWebhookService = async (
           const elementNowSelected = nodeSelected.data.seq[iLoc];
 
           ticket = await Ticket.findOne({
-            where: { id: idTicket, companyId }
+            where: { id: idTicket }
           });
 
           if (elementNowSelected.includes("message")) {
@@ -965,17 +972,13 @@ export const ActionsWebhookService = async (
           if (ticket) {
             ticket = await Ticket.findOne({
               where: {
-                id: ticket.id,
-                whatsappId: whatsappId,
-                companyId: companyId
+                id: ticket.id
               }
             });
           } else {
             ticket = await Ticket.findOne({
               where: {
-                id: idTicket,
-                whatsappId: whatsappId,
-                companyId: companyId
+                id: idTicket
               }
             });
           }
@@ -1046,7 +1049,7 @@ export const ActionsWebhookService = async (
           console.log(654, "ActionsWebhookService");
 
           await Ticket.findOne({
-            where: { id: idTicket, whatsappId, companyId: companyId }
+            where: { id: idTicket }
           });
           await ticket.update({
             lastFlowId: nodeSelected.id,
@@ -1068,7 +1071,7 @@ export const ActionsWebhookService = async (
 
       console.log("UPDATE10...");
       ticket = await Ticket.findOne({
-        where: { id: idTicket, whatsappId, companyId: companyId }
+        where: { id: idTicket }
       });
 
       if (ticket.status === "closed") {

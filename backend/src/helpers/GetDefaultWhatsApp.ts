@@ -4,9 +4,19 @@ import GetDefaultWhatsAppByUser from "./GetDefaultWhatsAppByUser";
 
 const GetDefaultWhatsApp = async (
   companyId: number,
-  userId?: number
+  userId?: number,
+  whatsappId?: number
 ): Promise<Whatsapp> => {
   let connection: Whatsapp;
+
+  // If whatsappId is provided, try to use it if connected
+  if (whatsappId) {
+    const specificWhatsapp = await Whatsapp.findByPk(whatsappId);
+    if (specificWhatsapp?.status === 'CONNECTED' && specificWhatsapp.companyId === companyId) {
+      connection = specificWhatsapp;
+      return connection;
+    }
+  }
 
   const defaultWhatsapp = await Whatsapp.findOne({
     where: { isDefault: true, companyId }

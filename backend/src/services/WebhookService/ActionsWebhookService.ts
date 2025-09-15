@@ -240,17 +240,23 @@ export const ActionsWebhookService = async (
           };
         }
 
-        await SendMessage(whatsapp, {
-          number: numberClient,
-          body: msg.body
+        // Get ticket details to register message in database
+        const ticketDetails = await ShowTicketService(ticket.id, companyId);
+
+        await typeSimulation(ticketDetails, "composing");
+
+        await SendWhatsAppMessage({
+          body: msg.body,
+          ticket: ticketDetails,
+          quotedMsg: null
         });
 
+        SetTicketMessagesAsRead(ticketDetails);
 
-        //TESTE BOTÃO
-        //await SendMessageFlow(whatsapp, {
-        //  number: numberClient,
-        //  body: msg.body
-        //} )
+        await ticketDetails.update({
+          lastMessage: formatBody(msg.body, ticket.contact)
+        });
+
         await intervalWhats("1");
       }
       console.log("273");

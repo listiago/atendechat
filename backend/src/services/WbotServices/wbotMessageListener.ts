@@ -1896,61 +1896,7 @@ const flowbuilderIntegration = async (
       }
     });
 
-    // Welcome flow
-    const enableWelcomeFlow = await Setting.findOne({
-      where: {
-        key: "enableWelcomeFlow",
-        companyId: ticket.companyId
-      }
-    });
-
-    const flowIdWelcomeSetting = await Setting.findOne({
-      where: {
-        key: "flowIdWelcome",
-        companyId: ticket.companyId
-      }
-    });
-
-    if (
-      isFirstMsg &&
-      listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0 &&
-      enableWelcomeFlow?.value === "enabled" &&
-      flowIdWelcomeSetting?.value &&
-      (Date.now() - new Date(ticket.createdAt).getTime()) < 30000 // Ticket created less than 30 seconds ago
-    ) {
-      const flow = await FlowBuilderModel.findOne({
-        where: {
-          id: flowIdWelcomeSetting.value,
-          company_id: ticket.companyId
-        }
-      });
-      if (flow) {
-        const nodes: INodes[] = flow.flow["nodes"];
-        const connections: IConnections[] = flow.flow["connections"];
-
-        const mountDataContact = {
-          number: contact.number,
-          name: contact.name,
-          email: contact.email
-        };
-
-        await ActionsWebhookService(
-          whatsapp.id,
-          flowIdWelcomeSetting.value,
-          ticket.companyId,
-          nodes,
-          connections,
-          flow.flow["nodes"][0].id,
-          null,
-          "",
-          "",
-          null,
-          ticket.id,
-          mountDataContact,
-          msg
-        );
-      }
-    }
+    // Welcome flow - REMOVED: This logic is now handled in the main handleMessage function
 
     const dateTicket = new Date(
       isFirstMsg?.updatedAt ? isFirstMsg.updatedAt : ""

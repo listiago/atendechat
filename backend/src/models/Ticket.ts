@@ -163,7 +163,7 @@ class Ticket extends Model<Ticket> {
   flowStopped: string;
 
   @Column(DataType.JSON)
-  dataWebhook: {} | null;
+  dataWebhook: { variables?: Record<string, any> } | null;
 }
 
 export default Ticket;

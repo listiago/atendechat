@@ -1828,7 +1828,8 @@ const flowbuilderIntegration = async (
     if (webhook && webhook.config["details"]) {
       const flow = await FlowBuilderModel.findOne({
         where: {
-          id: webhook.config["details"].idFlow
+          id: webhook.config["details"].idFlow,
+          company_id: ticket.companyId
         }
       });
       const nodes: INodes[] = flow.flow["nodes"];
@@ -1850,7 +1851,8 @@ const flowbuilderIntegration = async (
     } else {
       const flow = await FlowBuilderModel.findOne({
         where: {
-          id: ticket.flowStopped
+          id: ticket.flowStopped,
+          company_id: ticket.companyId
         }
       });
 
@@ -1902,15 +1904,24 @@ const flowbuilderIntegration = async (
       }
     });
 
+    const flowIdWelcomeSetting = await Setting.findOne({
+      where: {
+        key: "flowIdWelcome",
+        companyId: ticket.companyId
+      }
+    });
+
     if (
       isFirstMsg &&
       listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0 &&
       enableWelcomeFlow?.value === "enabled" &&
+      flowIdWelcomeSetting?.value &&
       (Date.now() - new Date(ticket.createdAt).getTime()) < 30000 // Ticket created less than 30 seconds ago
     ) {
       const flow = await FlowBuilderModel.findOne({
         where: {
-          id: whatsapp.flowIdWelcome
+          id: flowIdWelcomeSetting.value,
+          company_id: ticket.companyId
         }
       });
       if (flow) {
@@ -1925,7 +1936,7 @@ const flowbuilderIntegration = async (
 
         await ActionsWebhookService(
           whatsapp.id,
-          whatsapp.flowIdWelcome,
+          flowIdWelcomeSetting.value,
           ticket.companyId,
           nodes,
           connections,
@@ -1938,7 +1949,6 @@ const flowbuilderIntegration = async (
           mountDataContact,
           msg
         );
-        return; // Return after triggering welcome flow
       }
     }
 
@@ -1974,7 +1984,8 @@ const flowbuilderIntegration = async (
 
       const flow = await FlowBuilderModel.findOne({
         where: {
-          id: whatsapp.flowIdNotPhrase
+          id: whatsapp.flowIdNotPhrase,
+          company_id: ticket.companyId
         }
       });
 
@@ -2021,7 +2032,8 @@ const flowbuilderIntegration = async (
       const flowDispar = listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase())[0];
       const flow = await FlowBuilderModel.findOne({
         where: {
-          id: flowDispar.flowId
+          id: flowDispar.flowId,
+          company_id: ticket.companyId
         }
       });
       const nodes: INodes[] = flow.flow["nodes"];
@@ -2137,7 +2149,8 @@ const flowBuilderQueue = async (
 
   const flow = await FlowBuilderModel.findOne({
     where: {
-      id: ticket.flowStopped
+      id: ticket.flowStopped,
+      company_id: ticket.companyId
     }
   });
 
@@ -2286,17 +2299,24 @@ const handleMessage = async (
     const messageCount = await Message.count({
       where: { contactId: contact.id, companyId }
     });
-    if (messageCount === 0 && whatsapp.flowIdWelcome && !msg.key.fromMe && !isGroup) {
+    if (messageCount === 0 && !msg.key.fromMe && !isGroup) {
       const enableWelcomeFlow = await Setting.findOne({
         where: {
           key: "enableWelcomeFlow",
           companyId
         }
       });
-      if (enableWelcomeFlow?.value === "enabled") {
+      const flowIdWelcomeSetting = await Setting.findOne({
+        where: {
+          key: "flowIdWelcome",
+          companyId
+        }
+      });
+      if (enableWelcomeFlow?.value === "enabled" && flowIdWelcomeSetting?.value) {
         const flow = await FlowBuilderModel.findOne({
           where: {
-            id: whatsapp.flowIdWelcome
+            id: flowIdWelcomeSetting.value,
+            company_id: companyId
           }
         });
         if (flow) {
@@ -2310,7 +2330,7 @@ const handleMessage = async (
           try {
             await ActionsWebhookService(
               whatsapp.id,
-              whatsapp.flowIdWelcome,
+              flowIdWelcomeSetting.value,
               companyId,
               nodes,
               connections,
@@ -2477,7 +2497,8 @@ const handleMessage = async (
 
     const flow = await FlowBuilderModel.findOne({
       where: {
-        id: ticket.flowStopped
+        id: ticket.flowStopped,
+        company_id: ticket.companyId
       }
     });
 

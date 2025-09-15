@@ -37,9 +37,9 @@ import UpdateTicketService from "../TicketServices/UpdateTicketService";
 import FindOrCreateATicketTrakingService from "../TicketServices/FindOrCreateATicketTrakingService";
 import ShowTicketUUIDService from "../TicketServices/ShowTicketFromUUIDService";
 import {logger} from "../../utils/logger";
+import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
 ///import CreateLogTicketService from "../TicketServices/CreateLogTicketService";
 //import CompaniesSettings from "../../models/CompaniesSettings";
-//import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
 import { delay } from "bluebird";
 import { Op } from "sequelize";
 import typebotListener from "../TypebotServices/typebotListener";
@@ -166,9 +166,9 @@ export const ActionsWebhookService = async (
     }
 
     const lengthLoop = nodes.length;
-    const whatsapp = await GetDefaultWhatsApp(companyId);
+    const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
 
-    if (whatsapp.status !== "CONNECTED") {
+    if (!whatsapp || whatsapp.status !== "CONNECTED") {
       return;
     }
 

@@ -2301,12 +2301,16 @@ const handleMessage = async (
 
     // Trigger campaign flow if message matches phrase
     if (!msg.key.fromMe && !isGroup && bodyMessage) {
+      console.log(`[CAMPAIGN FLOW] Checking for phrase match: "${bodyMessage}" for WhatsApp ${whatsapp.id}`);
+
       const listPhrase = await FlowCampaignModel.findAll({
         where: {
           whatsappId: whatsapp.id,
           status: true
         }
       });
+
+      console.log(`[CAMPAIGN FLOW] Found ${listPhrase.length} active campaigns for WhatsApp ${whatsapp.id}`);
 
       const enablePhraseFlow = await Setting.findOne({
         where: {
@@ -2315,10 +2319,17 @@ const handleMessage = async (
         }
       });
 
-      if (listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase()).length !== 0 &&
-          enablePhraseFlow?.value === "enabled") {
+      console.log(`[CAMPAIGN FLOW] enablePhraseFlow setting: ${enablePhraseFlow?.value}`);
 
-        const flowDispar = listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase())[0];
+      const matchingPhrases = listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase());
+      console.log(`[CAMPAIGN FLOW] Matching phrases found: ${matchingPhrases.length}`);
+
+      if (matchingPhrases.length !== 0 && enablePhraseFlow?.value === "enabled") {
+        console.log(`[CAMPAIGN FLOW] Triggering flow for phrase: "${bodyMessage}"`);
+
+        const flowDispar = matchingPhrases[0];
+        console.log(`[CAMPAIGN FLOW] FlowCampaign ID: ${flowDispar.id}, Flow ID: ${flowDispar.flowId}`);
+
         const flow = await FlowBuilderModel.findOne({
           where: {
             id: flowDispar.flowId,
@@ -2326,7 +2337,10 @@ const handleMessage = async (
           }
         });
 
+        console.log(`[CAMPAIGN FLOW] Flow found: ${!!flow}`);
+
         if (flow) {
+          console.log(`[CAMPAIGN FLOW] Starting flow execution for ticket ${ticket.id}`);
           const nodes: INodes[] = flow.flow["nodes"];
           const connections: IConnections[] = flow.flow["connections"];
 
@@ -2336,23 +2350,32 @@ const handleMessage = async (
             email: contact.email
           };
 
-          await ActionsWebhookService(
-            whatsapp.id,
-            flowDispar.flowId,
-            ticket.companyId,
-            nodes,
-            connections,
-            flow.flow["nodes"][0].id,
-            null,
-            "",
-            "",
-            null,
-            ticket.id,
-            mountDataContact,
-            msg
-          );
-          return; // Return after triggering phrase flow
+          try {
+            await ActionsWebhookService(
+              whatsapp.id,
+              flowDispar.flowId,
+              ticket.companyId,
+              nodes,
+              connections,
+              flow.flow["nodes"][0].id,
+              null,
+              "",
+              "",
+              null,
+              ticket.id,
+              mountDataContact,
+              msg
+            );
+            console.log(`[CAMPAIGN FLOW] Flow execution completed successfully`);
+            return; // Return after triggering phrase flow
+          } catch (error) {
+            console.error(`[CAMPAIGN FLOW] Error executing flow:`, error);
+          }
+        } else {
+          console.log(`[CAMPAIGN FLOW] Flow not found in database`);
         }
+      } else {
+        console.log(`[CAMPAIGN FLOW] Conditions not met - matching phrases: ${matchingPhrases.length}, setting enabled: ${enablePhraseFlow?.value === "enabled"}`);
       }
     }
 

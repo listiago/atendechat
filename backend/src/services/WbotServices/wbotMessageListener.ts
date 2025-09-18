@@ -2299,6 +2299,63 @@ const handleMessage = async (
       console.log(`[WELCOME FLOW] Conditions not met - messageCount: ${messageCount}, fromMe: ${msg.key.fromMe}, isGroup: ${isGroup}`);
     }
 
+    // Trigger campaign flow if message matches phrase
+    if (!msg.key.fromMe && !isGroup && bodyMessage) {
+      const listPhrase = await FlowCampaignModel.findAll({
+        where: {
+          whatsappId: whatsapp.id,
+          status: true
+        }
+      });
+
+      const enablePhraseFlow = await Setting.findOne({
+        where: {
+          key: "enablePhraseFlow",
+          companyId: ticket.companyId
+        }
+      });
+
+      if (listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase()).length !== 0 &&
+          enablePhraseFlow?.value === "enabled") {
+
+        const flowDispar = listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase())[0];
+        const flow = await FlowBuilderModel.findOne({
+          where: {
+            id: flowDispar.flowId,
+            company_id: ticket.companyId
+          }
+        });
+
+        if (flow) {
+          const nodes: INodes[] = flow.flow["nodes"];
+          const connections: IConnections[] = flow.flow["connections"];
+
+          const mountDataContact = {
+            number: contact.number,
+            name: contact.name,
+            email: contact.email
+          };
+
+          await ActionsWebhookService(
+            whatsapp.id,
+            flowDispar.flowId,
+            ticket.companyId,
+            nodes,
+            connections,
+            flow.flow["nodes"][0].id,
+            null,
+            "",
+            "",
+            null,
+            ticket.id,
+            mountDataContact,
+            msg
+          );
+          return; // Return after triggering phrase flow
+        }
+      }
+    }
+
     await provider(ticket, msg, companyId, contact, wbot as WASocket);
 
     // voltar para o menu inicial

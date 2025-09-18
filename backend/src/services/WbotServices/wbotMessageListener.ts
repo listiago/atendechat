@@ -2149,7 +2149,14 @@ const handleMessage = async (
 ): Promise<void> => {
   let mediaSent: Message | undefined;
 
-  if (!isValidMsg(msg)) return;
+  console.log(`[MESSAGE HANDLER] Processing message for company ${companyId}`);
+  console.log(`[MESSAGE HANDLER] Message from me: ${msg.key.fromMe}`);
+  console.log(`[MESSAGE HANDLER] Message type: ${getTypeMessage(msg)}`);
+
+  if (!isValidMsg(msg)) {
+    console.log(`[MESSAGE HANDLER] Message is not valid`);
+    return;
+  }
 
   try {
     let msgContact: IMe;

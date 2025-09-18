@@ -27,7 +27,8 @@ const CreateFlowCampaignService = async ({
       name: name,
       phrase: phrase,
       flowId: flowId,
-      whatsappId: whatsappId
+      whatsappId: whatsappId,
+      status: true
     });
 
     return flow;

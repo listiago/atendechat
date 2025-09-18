@@ -2318,6 +2318,7 @@ const handleMessage = async (
       });
 
       console.log(`[CAMPAIGN FLOW] Found ${listPhrase.length} active campaigns for WhatsApp ${whatsapp.id}`);
+      console.log(`[CAMPAIGN FLOW] Campaign details:`, listPhrase.map(c => ({ id: c.id, phrase: c.phrase, status: c.status })));
 
       const enablePhraseFlow = await Setting.findOne({
         where: {
@@ -2330,6 +2331,7 @@ const handleMessage = async (
 
       const matchingPhrases = listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase());
       console.log(`[CAMPAIGN FLOW] Matching phrases found: ${matchingPhrases.length}`);
+      console.log(`[CAMPAIGN FLOW] Matching phrase details:`, matchingPhrases.map(p => ({ id: p.id, phrase: p.phrase, flowId: p.flowId })));
 
       if (matchingPhrases.length !== 0 && enablePhraseFlow?.value === "enabled") {
         console.log(`[CAMPAIGN FLOW] Triggering flow for phrase: "${bodyMessage}"`);
@@ -2345,11 +2347,16 @@ const handleMessage = async (
         });
 
         console.log(`[CAMPAIGN FLOW] Flow found: ${!!flow}`);
+        if (flow) {
+          console.log(`[CAMPAIGN FLOW] Flow details:`, { id: flow.id, name: flow.name, active: flow.active });
+        }
 
         if (flow) {
           console.log(`[CAMPAIGN FLOW] Starting flow execution for ticket ${ticket.id}`);
           const nodes: INodes[] = flow.flow["nodes"];
           const connections: IConnections[] = flow.flow["connections"];
+
+          console.log(`[CAMPAIGN FLOW] Flow nodes count: ${nodes.length}, connections count: ${connections.length}`);
 
           const mountDataContact = {
             number: contact.number,
@@ -2383,6 +2390,12 @@ const handleMessage = async (
         }
       } else {
         console.log(`[CAMPAIGN FLOW] Conditions not met - matching phrases: ${matchingPhrases.length}, setting enabled: ${enablePhraseFlow?.value === "enabled"}`);
+        if (matchingPhrases.length === 0) {
+          console.log(`[CAMPAIGN FLOW] No matching phrases found for: "${bodyMessage}"`);
+        }
+        if (enablePhraseFlow?.value !== "enabled") {
+          console.log(`[CAMPAIGN FLOW] enablePhraseFlow is not enabled: "${enablePhraseFlow?.value}"`);
+        }
       }
     }
 

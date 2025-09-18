@@ -2308,7 +2308,8 @@ const handleMessage = async (
 
     // Trigger campaign flow if message matches phrase
     if (!msg.key.fromMe && !isGroup && bodyMessage) {
-      console.log(`[CAMPAIGN FLOW] Checking for phrase match: "${bodyMessage}" for WhatsApp ${whatsapp.id}`);
+      console.log(`[CAMPAIGN FLOW] ===== STARTING CAMPAIGN FLOW CHECK =====`);
+      console.log(`[CAMPAIGN FLOW] Message: "${bodyMessage}" | From: ${contact.name} (${contact.number}) | WhatsApp: ${whatsapp.id} | Company: ${ticket.companyId}`);
 
       const listPhrase = await FlowCampaignModel.findAll({
         where: {
@@ -2318,7 +2319,9 @@ const handleMessage = async (
       });
 
       console.log(`[CAMPAIGN FLOW] Found ${listPhrase.length} active campaigns for WhatsApp ${whatsapp.id}`);
-      console.log(`[CAMPAIGN FLOW] Campaign details:`, listPhrase.map(c => ({ id: c.id, phrase: c.phrase, status: c.status })));
+      if (listPhrase.length > 0) {
+        console.log(`[CAMPAIGN FLOW] Campaign details:`, listPhrase.map(c => ({ id: c.id, phrase: `"${c.phrase}"`, status: c.status, flowId: c.flowId })));
+      }
 
       const enablePhraseFlow = await Setting.findOne({
         where: {
@@ -2327,21 +2330,30 @@ const handleMessage = async (
         }
       });
 
-      console.log(`[CAMPAIGN FLOW] enablePhraseFlow setting: ${enablePhraseFlow?.value}`);
+      console.log(`[CAMPAIGN FLOW] enablePhraseFlow setting: "${enablePhraseFlow?.value}" (exists: ${!!enablePhraseFlow})`);
 
       // Improved phrase matching with trimming and normalization
       const normalizedBodyMessage = bodyMessage.trim().toLowerCase();
+      console.log(`[CAMPAIGN FLOW] Original message: "${bodyMessage}"`);
+      console.log(`[CAMPAIGN FLOW] Normalized message: "${normalizedBodyMessage}"`);
+
       const matchingPhrases = listPhrase.filter(item => {
         const normalizedPhrase = item.phrase.trim().toLowerCase();
-        return normalizedPhrase === normalizedBodyMessage;
+        const matches = normalizedPhrase === normalizedBodyMessage;
+        console.log(`[CAMPAIGN FLOW] Comparing "${normalizedPhrase}" === "${normalizedBodyMessage}" => ${matches}`);
+        return matches;
       });
 
-      console.log(`[CAMPAIGN FLOW] Normalized message: "${normalizedBodyMessage}"`);
       console.log(`[CAMPAIGN FLOW] Matching phrases found: ${matchingPhrases.length}`);
-      console.log(`[CAMPAIGN FLOW] Matching phrase details:`, matchingPhrases.map(p => ({ id: p.id, phrase: p.phrase, flowId: p.flowId })));
+      if (matchingPhrases.length > 0) {
+        console.log(`[CAMPAIGN FLOW] Matching phrase details:`, matchingPhrases.map(p => ({ id: p.id, phrase: `"${p.phrase}"`, flowId: p.flowId })));
+      }
 
-      if (matchingPhrases.length !== 0 && enablePhraseFlow?.value === "enabled") {
-        console.log(`[CAMPAIGN FLOW] Triggering flow for phrase: "${bodyMessage}"`);
+      const conditionsMet = matchingPhrases.length !== 0 && enablePhraseFlow?.value === "enabled";
+      console.log(`[CAMPAIGN FLOW] Conditions check: matchingPhrases=${matchingPhrases.length}, setting="${enablePhraseFlow?.value}", conditionsMet=${conditionsMet}`);
+
+      if (conditionsMet) {
+        console.log(`[CAMPAIGN FLOW] ✅ All conditions met - triggering flow for phrase: "${bodyMessage}"`);
 
         const flowDispar = matchingPhrases[0];
         console.log(`[CAMPAIGN FLOW] FlowCampaign ID: ${flowDispar.id}, Flow ID: ${flowDispar.flowId}`);
@@ -2353,17 +2365,26 @@ const handleMessage = async (
           }
         });
 
-        console.log(`[CAMPAIGN FLOW] Flow found: ${!!flow}`);
+        console.log(`[CAMPAIGN FLOW] Flow lookup result: ${!!flow}`);
         if (flow) {
-          console.log(`[CAMPAIGN FLOW] Flow details:`, { id: flow.id, name: flow.name, active: flow.active });
+          console.log(`[CAMPAIGN FLOW] Flow details:`, {
+            id: flow.id,
+            name: flow.name,
+            active: flow.active,
+            company_id: flow.company_id,
+            nodesCount: flow.flow?.nodes?.length || 0,
+            connectionsCount: flow.flow?.connections?.length || 0
+          });
+        } else {
+          console.log(`[CAMPAIGN FLOW] ❌ Flow not found in database for flowId: ${flowDispar.flowId}, companyId: ${ticket.companyId}`);
         }
 
         if (flow && flow.active) {
-          console.log(`[CAMPAIGN FLOW] Starting flow execution for ticket ${ticket.id}`);
+          console.log(`[CAMPAIGN FLOW] 🚀 Starting flow execution for ticket ${ticket.id}`);
           const nodes: INodes[] = flow.flow["nodes"];
           const connections: IConnections[] = flow.flow["connections"];
 
-          console.log(`[CAMPAIGN FLOW] Flow nodes count: ${nodes.length}, connections count: ${connections.length}`);
+          console.log(`[CAMPAIGN FLOW] Flow structure: ${nodes.length} nodes, ${connections.length} connections`);
 
           const mountDataContact = {
             number: contact.number,
@@ -2371,7 +2392,10 @@ const handleMessage = async (
             email: contact.email
           };
 
+          console.log(`[CAMPAIGN FLOW] Contact data:`, mountDataContact);
+
           try {
+            console.log(`[CAMPAIGN FLOW] Calling ActionsWebhookService...`);
             await ActionsWebhookService(
               whatsapp.id,
               flowDispar.flowId,
@@ -2387,24 +2411,35 @@ const handleMessage = async (
               mountDataContact,
               msg
             );
-            console.log(`[CAMPAIGN FLOW] Flow execution completed successfully`);
+            console.log(`[CAMPAIGN FLOW] ✅ Flow execution completed successfully`);
             return; // Return after triggering phrase flow
           } catch (error) {
-            console.error(`[CAMPAIGN FLOW] Error executing flow:`, error);
+            console.error(`[CAMPAIGN FLOW] ❌ Error executing flow:`, error);
+            console.error(`[CAMPAIGN FLOW] Error details:`, error.message);
+            console.error(`[CAMPAIGN FLOW] Error stack:`, error.stack);
             Sentry.captureException(error);
           }
         } else {
-          console.log(`[CAMPAIGN FLOW] Flow not found or not active in database`);
+          console.log(`[CAMPAIGN FLOW] ❌ Flow not found or not active in database`);
+          if (!flow) {
+            console.log(`[CAMPAIGN FLOW] ❌ Flow is null`);
+          } else if (!flow.active) {
+            console.log(`[CAMPAIGN FLOW] ❌ Flow is not active (active: ${flow.active})`);
+          }
         }
       } else {
-        console.log(`[CAMPAIGN FLOW] Conditions not met - matching phrases: ${matchingPhrases.length}, setting enabled: ${enablePhraseFlow?.value === "enabled"}`);
+        console.log(`[CAMPAIGN FLOW] ❌ Conditions not met:`);
         if (matchingPhrases.length === 0) {
-          console.log(`[CAMPAIGN FLOW] No matching phrases found for: "${bodyMessage}"`);
+          console.log(`[CAMPAIGN FLOW] ❌ No matching phrases found for: "${bodyMessage}"`);
+          console.log(`[CAMPAIGN FLOW] ❌ Available phrases:`, listPhrase.map(p => `"${p.phrase}"`));
         }
         if (enablePhraseFlow?.value !== "enabled") {
-          console.log(`[CAMPAIGN FLOW] enablePhraseFlow is not enabled: "${enablePhraseFlow?.value}"`);
+          console.log(`[CAMPAIGN FLOW] ❌ enablePhraseFlow is not enabled: "${enablePhraseFlow?.value}"`);
         }
       }
+      console.log(`[CAMPAIGN FLOW] ===== END CAMPAIGN FLOW CHECK =====`);
+    } else {
+      console.log(`[CAMPAIGN FLOW] Skipping campaign flow check - conditions not met: fromMe=${msg.key.fromMe}, isGroup=${isGroup}, hasBodyMessage=${!!bodyMessage}`);
     }
 
     await provider(ticket, msg, companyId, contact, wbot as WASocket);

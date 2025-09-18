@@ -1,7 +1,7 @@
 import AppError from "../../errors/AppError";
 import { WebhookModel } from "../../models/Webhook";
 import { sendMessageFlow } from "../../controllers/MessageController";
-import { IConnections, INodes } from "./DispatchWebHookService";
+import { IConnections, INodes } from "../../models/FlowBuilder";
 import { FlowBuilderModel } from "../../models/FlowBuilder";
 import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";

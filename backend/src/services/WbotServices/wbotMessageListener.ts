@@ -63,7 +63,7 @@ import { FlowDefaultModel } from "../../models/FlowDefault";
 import { FlowCampaignModel } from "../../models/FlowCampaign";
 import { IOpenAi } from "../../@types/openai";
 
-import { IConnections, INodes } from "../WebhookService/DispatchWebHookService";
+import { IConnections, INodes } from "../../models/FlowBuilder";
 import { ActionsWebhookService } from "../WebhookService/ActionsWebhookService";
 import { WebhookModel } from "../../models/Webhook";
 

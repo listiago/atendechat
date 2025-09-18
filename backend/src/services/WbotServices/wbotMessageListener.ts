@@ -2329,7 +2329,14 @@ const handleMessage = async (
 
       console.log(`[CAMPAIGN FLOW] enablePhraseFlow setting: ${enablePhraseFlow?.value}`);
 
-      const matchingPhrases = listPhrase.filter(item => item.phrase.toLowerCase() === bodyMessage.toLowerCase());
+      // Improved phrase matching with trimming and normalization
+      const normalizedBodyMessage = bodyMessage.trim().toLowerCase();
+      const matchingPhrases = listPhrase.filter(item => {
+        const normalizedPhrase = item.phrase.trim().toLowerCase();
+        return normalizedPhrase === normalizedBodyMessage;
+      });
+
+      console.log(`[CAMPAIGN FLOW] Normalized message: "${normalizedBodyMessage}"`);
       console.log(`[CAMPAIGN FLOW] Matching phrases found: ${matchingPhrases.length}`);
       console.log(`[CAMPAIGN FLOW] Matching phrase details:`, matchingPhrases.map(p => ({ id: p.id, phrase: p.phrase, flowId: p.flowId })));
 
@@ -2351,7 +2358,7 @@ const handleMessage = async (
           console.log(`[CAMPAIGN FLOW] Flow details:`, { id: flow.id, name: flow.name, active: flow.active });
         }
 
-        if (flow) {
+        if (flow && flow.active) {
           console.log(`[CAMPAIGN FLOW] Starting flow execution for ticket ${ticket.id}`);
           const nodes: INodes[] = flow.flow["nodes"];
           const connections: IConnections[] = flow.flow["connections"];
@@ -2384,9 +2391,10 @@ const handleMessage = async (
             return; // Return after triggering phrase flow
           } catch (error) {
             console.error(`[CAMPAIGN FLOW] Error executing flow:`, error);
+            Sentry.captureException(error);
           }
         } else {
-          console.log(`[CAMPAIGN FLOW] Flow not found in database`);
+          console.log(`[CAMPAIGN FLOW] Flow not found or not active in database`);
         }
       } else {
         console.log(`[CAMPAIGN FLOW] Conditions not met - matching phrases: ${matchingPhrases.length}, setting enabled: ${enablePhraseFlow?.value === "enabled"}`);

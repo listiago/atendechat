@@ -214,13 +214,31 @@ const FlowBuilderConfig = () => {
       });
     }
     if (type === "interval") {
+      // Parse the interval data to display proper label
+      let label = "Intervalo";
+      if (data.sec) {
+        if (typeof data.sec === 'string' && data.sec.includes(':')) {
+          const [value, unit] = data.sec.split(':');
+          const unitLabels = {
+            seconds: 'seg.',
+            minutes: 'min.',
+            hours: 'h.',
+            days: 'dias'
+          };
+          label = `Intervalo ${value} ${unitLabels[unit] || 'seg.'}`;
+        } else {
+          // Legacy format
+          label = `Intervalo ${data.sec} seg.`;
+        }
+      }
+
       return setNodes((old) => {
         return [
           ...old,
           {
             id: geraStringAleatoria(30),
             position: { x: posX, y: posY },
-            data: { label: `Intervalo ${data.sec} seg.`, sec: data.sec },
+            data: { label: label, sec: data.sec },
             type: "interval",
           },
         ];
@@ -558,6 +576,30 @@ const FlowBuilderConfig = () => {
     setNodes((old) =>
       old.map((itemNode) => {
         if (itemNode.id === dataAlter.id) {
+          // Update label for interval nodes
+          if (dataAlter.type === "interval" && dataAlter.data.sec) {
+            let label = "Intervalo";
+            if (typeof dataAlter.data.sec === 'string' && dataAlter.data.sec.includes(':')) {
+              const [value, unit] = dataAlter.data.sec.split(':');
+              const unitLabels = {
+                seconds: 'seg.',
+                minutes: 'min.',
+                hours: 'h.',
+                days: 'dias'
+              };
+              label = `Intervalo ${value} ${unitLabels[unit] || 'seg.'}`;
+            } else {
+              // Legacy format
+              label = `Intervalo ${dataAlter.data.sec} seg.`;
+            }
+            return {
+              ...dataAlter,
+              data: {
+                ...dataAlter.data,
+                label: label
+              }
+            };
+          }
           return dataAlter;
         }
         return itemNode;

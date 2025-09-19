@@ -1141,8 +1141,37 @@ const sendMessageWhats = async (
 };
 
 const intervalWhats = (time: string) => {
-  const seconds = parseInt(time) * 1000;
-  return new Promise(resolve => setTimeout(resolve, seconds));
+  let seconds = 0;
+
+  if (time.includes(':')) {
+    // New format: "value:unit"
+    const [value, unit] = time.split(':');
+    const numValue = parseInt(value);
+
+    switch (unit) {
+      case 'seconds':
+        seconds = numValue;
+        break;
+      case 'minutes':
+        seconds = numValue * 60;
+        break;
+      case 'hours':
+        seconds = numValue * 60 * 60;
+        break;
+      case 'days':
+        seconds = numValue * 24 * 60 * 60;
+        break;
+      default:
+        // Fallback to seconds if unit is unknown
+        seconds = numValue;
+        break;
+    }
+  } else {
+    // Legacy format - just seconds
+    seconds = parseInt(time);
+  }
+
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 };
 
 const replaceMessages = (variables, message) => {

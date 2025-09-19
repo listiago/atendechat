@@ -16,6 +16,10 @@ import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+import FormControl from "@material-ui/core/FormControl";
+import InputLabel from "@material-ui/core/InputLabel";
 
 import { i18n } from "../../translate/i18n";
 
@@ -63,15 +67,29 @@ const FlowBuilderIntervalModal = ({
   const classes = useStyles();
   const isMounted = useRef(true);
 
-  const [timerSec, setTimerSec] = useState(0)
+  const [timerValue, setTimerValue] = useState(0)
+  const [timerUnit, setTimerUnit] = useState('seconds')
   const [activeModal, setActiveModal] = useState(false)
 
   useEffect(() => {
     if(open === 'edit'){
-      setTimerSec(data.data.sec)
+      // Parse existing data - if it's just a number, assume seconds
+      if (data.data.sec) {
+        if (typeof data.data.sec === 'string' && data.data.sec.includes(':')) {
+          // Format: "value:unit"
+          const [value, unit] = data.data.sec.split(':');
+          setTimerValue(parseInt(value));
+          setTimerUnit(unit);
+        } else {
+          // Legacy format - just seconds
+          setTimerValue(parseInt(data.data.sec));
+          setTimerUnit('seconds');
+        }
+      }
       setActiveModal(true)
     } else if(open === 'create'){
-      setTimerSec(0)
+      setTimerValue(0)
+      setTimerUnit('seconds')
       setActiveModal(true)
     }
     return () => {
@@ -86,24 +104,37 @@ const FlowBuilderIntervalModal = ({
   };
 
   const handleSaveContact = async values => {
-    if(!timerSec || parseInt(timerSec)  <= 0){
+    if(!timerValue || parseInt(timerValue) <= 0){
       return toast.error('Adicione o valor de intervalo')
     }
-    if(parseInt(timerSec) > 120){
-      return toast.error('Máximo de tempo atingido 120 segundos')
+
+    // Validation based on unit
+    const maxLimits = {
+      seconds: 86400, // 24 hours in seconds
+      minutes: 1440,  // 24 hours in minutes
+      hours: 24,      // 24 hours
+      days: 30        // 30 days max
+    };
+
+    if(parseInt(timerValue) > maxLimits[timerUnit]){
+      return toast.error(`Máximo de tempo atingido: ${maxLimits[timerUnit]} ${timerUnit}`)
     }
+
+    // Format the data as "value:unit"
+    const formattedValue = `${timerValue}:${timerUnit}`;
+
     if(open === 'edit'){
       onUpdate({
         ...data,
-        data: { sec: timerSec }
+        data: { sec: formattedValue }
       });
     } else if(open === 'create'){
       onSave({
-        sec: timerSec
+        sec: formattedValue
       })
     }
     handleClose()
-    
+
   };
 
   return (
@@ -114,19 +145,34 @@ const FlowBuilderIntervalModal = ({
         </DialogTitle>        
             <Stack>
               <DialogContent dividers>
-                <TextField
-                  label={'Tempo em segundos'}
-                  name="timer"
-                  type="number"
-                  value={timerSec}
-                  onChange={(e) => setTimerSec(e.target.value)}
-                  autoFocus
-                  variant="outlined"
-                  InputProps={{ inputProps: { min: 0 } }}
-                  margin="dense"
-                  className={classes.textField}
-                  style={{ width: "95%" }}
-                />
+                <Stack direction="row" spacing={2} style={{ width: "100%" }}>
+                  <TextField
+                    label={'Valor do tempo'}
+                    name="timerValue"
+                    type="number"
+                    value={timerValue}
+                    onChange={(e) => setTimerValue(e.target.value)}
+                    autoFocus
+                    variant="outlined"
+                    InputProps={{ inputProps: { min: 0 } }}
+                    margin="dense"
+                    className={classes.textField}
+                    style={{ flex: 2 }}
+                  />
+                  <FormControl variant="outlined" margin="dense" style={{ flex: 1 }}>
+                    <InputLabel>Unidade</InputLabel>
+                    <Select
+                      value={timerUnit}
+                      onChange={(e) => setTimerUnit(e.target.value)}
+                      label="Unidade"
+                    >
+                      <MenuItem value="seconds">Segundos</MenuItem>
+                      <MenuItem value="minutes">Minutos</MenuItem>
+                      <MenuItem value="hours">Horas</MenuItem>
+                      <MenuItem value="days">Dias</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
               </DialogContent>
               <DialogActions>
                 <Button

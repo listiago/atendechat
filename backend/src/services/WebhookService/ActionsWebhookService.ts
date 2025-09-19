@@ -602,6 +602,82 @@ export const ActionsWebhookService = async (
         break;
       }
 
+      if (nodeSelected.type === "interval") {
+        logger.info(`[INTERVAL NODE] Starting interval node ${nodeSelected.id} for ticket ${ticket?.id || idTicket}`);
+
+        // Get ticket details - ensure we have a valid ticket
+        const ticketToUse = ticket || await Ticket.findOne({
+          where: { id: idTicket }
+        });
+
+        if (!ticketToUse) {
+          logger.error(`[INTERVAL NODE] No ticket found for id ${idTicket}`);
+          break;
+        }
+
+        // Parse interval time from node data
+        const intervalData = nodeSelected.data.sec;
+        if (!intervalData) {
+          logger.warn(`[INTERVAL NODE] No interval data found for node ${nodeSelected.id}`);
+          break;
+        }
+
+        logger.info(`[INTERVAL NODE] Interval data: ${intervalData}`);
+
+        // Calculate interval in milliseconds
+        let intervalMs = 0;
+
+        if (intervalData.includes(':')) {
+          // New format: "value:unit"
+          const [value, unit] = intervalData.split(':');
+          const numValue = parseInt(value);
+
+          switch (unit) {
+            case 'seconds':
+              intervalMs = numValue * 1000;
+              break;
+            case 'minutes':
+              intervalMs = numValue * 60 * 1000;
+              break;
+            case 'hours':
+              intervalMs = numValue * 60 * 60 * 1000;
+              break;
+            case 'days':
+              intervalMs = numValue * 24 * 60 * 60 * 1000;
+              break;
+            default:
+              // Fallback to seconds if unit is unknown
+              intervalMs = numValue * 1000;
+              break;
+          }
+        } else {
+          // Legacy format - just seconds
+          intervalMs = parseInt(intervalData) * 1000;
+        }
+
+        // Set minimum interval to 1 second and maximum to 30 days
+        const minInterval = 1 * 1000; // 1 second
+        const maxInterval = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+        if (intervalMs < minInterval) {
+          logger.warn(`[INTERVAL NODE] Interval too short: ${intervalMs}ms, setting to minimum ${minInterval}ms`);
+          intervalMs = minInterval;
+        } else if (intervalMs > maxInterval) {
+          logger.warn(`[INTERVAL NODE] Interval too long: ${intervalMs}ms, setting to maximum ${maxInterval}ms`);
+          intervalMs = maxInterval;
+        }
+
+        logger.info(`[INTERVAL NODE] Waiting for ${intervalMs}ms (${intervalData})`);
+
+        // Wait for the specified interval
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+
+        logger.info(`[INTERVAL NODE] Interval completed for node ${nodeSelected.id}`);
+
+        // Continue to next node after interval
+        break;
+      }
+
       if (nodeSelected.type === "flowConnection") {
         const connectedFlowId = nodeSelected.data.flowId;
         if (connectedFlowId) {

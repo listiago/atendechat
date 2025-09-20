@@ -675,7 +675,7 @@ export const ActionsWebhookService = async (
         logger.info(`[INTERVAL NODE] Interval completed for node ${nodeSelected.id}`);
 
         // Continue to next node after interval
-        break;
+        // Note: No break here - continue with normal flow processing
       }
 
       if (nodeSelected.type === "flowConnection") {

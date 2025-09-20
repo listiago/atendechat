@@ -23,12 +23,19 @@ export const SendMessageFlow = async (
     let message;
 
     if (messageData.mediaPath) {
-      // Send media message
-      const mediaMessage = {
-        image: { url: messageData.mediaPath },
-        caption: messageData.body
-      };
-      message = await wbot.sendMessage(chatId, mediaMessage);
+      // CORREÇÃO: Usar getMessageOptions para processar mídia corretamente
+      const fileName = messageData.mediaPath.split('/').pop() || 'media';
+      const options = await getMessageOptions(
+        fileName,
+        messageData.mediaPath,
+        messageData.body
+      );
+
+      if (options) {
+        message = await wbot.sendMessage(chatId, { ...options });
+      } else {
+        throw new Error('Falha ao processar mídia no flow');
+      }
     } else {
       // Send text message
       const body = `\u200e${messageData.body}`;

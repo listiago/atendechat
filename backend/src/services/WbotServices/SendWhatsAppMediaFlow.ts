@@ -7,7 +7,7 @@ import ffmpegPath from "@ffmpeg-installer/ffmpeg";
 import AppError from "../../errors/AppError";
 import GetTicketWbot from "../../helpers/GetTicketWbot";
 import Ticket from "../../models/Ticket";
-import mime from "mime-types";
+import { lookup } from "mime-types";
 import Contact from "../../models/Contact";
 
 interface Request {
@@ -31,8 +31,18 @@ const processAudio = async (audio: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     exec(
       `${ffmpegPath.path} -i ${audio} -vn -ab 128k -ar 44100 -f ipod ${outputAudio} -y`,
-      (error, _stdout, _stderr) => {
-        if (error) reject(error);
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error("Erro no processamento de áudio (flow):", error.message);
+          console.error("STDERR:", stderr);
+          reject(new Error(`Falha no processamento de áudio: ${error.message}`));
+          return;
+        }
+        // Verificar se o arquivo de saída foi criado
+        if (!fs.existsSync(outputAudio)) {
+          reject(new Error("Arquivo de áudio processado não foi criado"));
+          return;
+        }
         //fs.unlinkSync(audio);
         resolve(outputAudio);
       }
@@ -45,8 +55,18 @@ const processAudioFile = async (audio: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     exec(
       `${ffmpegPath.path} -i ${audio} -vn -ar 44100 -ac 2 -b:a 192k ${outputAudio}`,
-      (error, _stdout, _stderr) => {
-        if (error) reject(error);
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error("Erro no processamento de arquivo de áudio (flow):", error.message);
+          console.error("STDERR:", stderr);
+          reject(new Error(`Falha no processamento de arquivo de áudio: ${error.message}`));
+          return;
+        }
+        // Verificar se o arquivo de saída foi criado
+        if (!fs.existsSync(outputAudio)) {
+          reject(new Error("Arquivo de áudio processado não foi criado"));
+          return;
+        }
         //fs.unlinkSync(audio);
         resolve(outputAudio);
       }
@@ -88,19 +108,19 @@ const SendWhatsAppMediaFlow = async ({
   try {
     const wbot = await GetTicketWbot(ticket);
 
-    const mimetype = mime.lookup(media)
-    const pathMedia = media
+    const mimetype = lookup(media) || "";
+    const pathMedia = media;
 
     let typeMessage = "";
 
     if (typeof mimetype === "string") {
       typeMessage = mimetype.split("/")[0];
     }
-    const mediaName = nameFileDiscovery(media)
+    const mediaName = nameFileDiscovery(media);
 
     let options: AnyMessageContent;
 
-    if( mimetype ){
+    if (mimetype) {
       if (typeMessage === "video") {
         options = {
           video: fs.readFileSync(pathMedia),
@@ -109,19 +129,27 @@ const SendWhatsAppMediaFlow = async ({
           // gifPlayback: true
         };
       } else if (typeMessage === "audio") {
-        console.log('record', isRecord)
-        if (isRecord) {
+        console.log('record', isRecord);
+
+        // CORREÇÃO: Melhorar lógica de detecção de tipo de áudio
+        const isPttAudio = isRecord ||
+                          mediaName.includes("audio-record-site") ||
+                          mimetype.includes("ogg") ||
+                          mimetype.includes("webm") ||
+                          mimetype.includes("mp4");
+
+        if (isPttAudio) {
           const convert = await processAudio(pathMedia);
           options = {
             audio: fs.readFileSync(convert),
-            mimetype: typeMessage ? "audio/mp4" : mimetype,
+            mimetype: "audio/mp4",
             ptt: true
           };
         } else {
           const convert = await processAudioFile(pathMedia);
           options = {
             audio: fs.readFileSync(convert),
-            mimetype: typeMessage ? "audio/mp4" : mimetype,
+            mimetype: mimetype,
             ptt: false
           };
         }
@@ -139,12 +167,15 @@ const SendWhatsAppMediaFlow = async ({
           fileName: mediaName,
           mimetype: mimetype
         };
+      } else {
+        // Fallback para imagem
+        options = {
+          image: fs.readFileSync(pathMedia),
+          caption: body
+        };
       }
     } else {
-      options = {
-        image: fs.readFileSync(pathMedia),
-        caption: body
-      };
+      throw new Error(`Tipo MIME não identificado para o arquivo: ${pathMedia}`);
     }
 
     let contact = await Contact.findOne({
